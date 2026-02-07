@@ -24,7 +24,7 @@ local zoneIndexToZoneObj = State.zoneIndexToZoneObj
 local ctx_pos: Vector3
 local ctx_data: Types.ItemData
 local ctx_cCount: number = 0
-local ctx_lowestWin: number
+local ctx_highestWin: number
 local ctx_candidatePriority: { [number]: number } = table.create(16)
 local ctx_candidateIndex: { [number]: number } = table.create(16)
 local ctx_candidateList: { [number]: number } = table.create(16)
@@ -78,15 +78,15 @@ local function queryCallback(zoneId: number)
 	-- Process the groups
 	for _, gUID in groups do
 		if memberOfGroups[gUID] then
-			local pri = groupPriorityMap[gUID] or 1e6
+			local pri = groupPriorityMap[gUID] or 0
 
 			ctx_cCount += 1
 			ctx_candidateList[ctx_cCount] = gUID
 			ctx_candidateIndex[gUID] = zoneId
 			ctx_candidatePriority[gUID] = pri
 
-			if pri < ctx_lowestWin then
-				ctx_lowestWin = pri
+			if pri > ctx_highestWin then
+				ctx_highestWin = pri
 			end
 		end
 	end
@@ -145,7 +145,7 @@ RunService.Heartbeat:Connect(function()
 		ctx_pos = pos
 		ctx_data = data
 		ctx_cCount = 0
-		ctx_lowestWin = math.huge
+		ctx_highestWin = -math.huge
 
 		SpatialIndex.QueryPoint(State.rootNode, pos, queryCallback)
 
@@ -154,7 +154,7 @@ RunService.Heartbeat:Connect(function()
 		-- Check exits
 		for gUID, oldZoneIdx in current do
 			local newPri = ctx_candidatePriority[gUID]
-			if not newPri or newPri > ctx_lowestWin then
+			if not newPri or newPri < ctx_highestWin then
 				current[gUID] = nil
 
 				if groupActiveMembers[gUID] then
@@ -172,7 +172,7 @@ RunService.Heartbeat:Connect(function()
 			local gUID = ctx_candidateList[i]
 			local pri = ctx_candidatePriority[gUID]
 
-			if pri <= ctx_lowestWin then
+			if pri >= ctx_highestWin then
 				if not current[gUID] then
 					local newZoneIdx = ctx_candidateIndex[gUID]
 					current[gUID] = newZoneIdx
@@ -216,7 +216,7 @@ return {
 		return Zone.new(part.CFrame, part.Size, shape, part)
 	end,
 
-	IsItemItem = function(item: any): boolean
+	CanItemBeTracked = function(item: any): boolean
 		if typeof(item) == 'Instance' then
 			if item:IsA('BasePart') then
 				return true

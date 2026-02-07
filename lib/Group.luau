@@ -28,7 +28,7 @@ function Group.new(priority: number?): Types.Group
 		}, Group) :: any
 	) :: Types.Group
 
-	State.groupPriorityMap[g.UID] = priority or 1e6
+	State.groupPriorityMap[g.UID] = priority or 0
 	State.groupEnteredCallbacks[g.UID] = {}
 	State.groupExitedCallbacks[g.UID] = {}
 	State.groupActiveMembers[g.UID] = setmetatable({}, { __mode = 'k' }) :: any
