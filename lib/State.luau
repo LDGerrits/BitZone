@@ -11,7 +11,6 @@ State.objects = {} :: { Types.BoundingVolume }
 State.rootNode = nil :: Types.Node?
 State.pendingRebuild = false
 State.isDirty = false
-State.frameBudget = 1 / 1000
 
 State.items = (setmetatable({}, { __mode = 'k' }) :: any) :: { [Types.Item]: Types.ItemData }
 State.itemCustomData = (setmetatable({}, { __mode = 'k' }) :: any) :: { [Types.Item]: { [number]: any } }

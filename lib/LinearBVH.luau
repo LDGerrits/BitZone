@@ -75,7 +75,7 @@ end
 local HUGE_VECTOR = Vector3.one * math.huge
 local NEGATIVE_HUGE_VECTOR = -HUGE_VECTOR
 
-function LinearBVH.Build(objects: { Geometry.BoundingVolume }): Types.Node?
+function LinearBVH.Build(objects: { Types.BoundingVolume }): Types.Node?
 	table.clear(traversalStack)
 
 	local min = HUGE_VECTOR

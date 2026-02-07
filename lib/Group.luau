@@ -397,7 +397,7 @@ function Group:_setupPlayerTracking(player: Player)
 
 				table.insert(
 					charConns,
-					hrp.AncestryChanged:Connect(function(child, parent)
+					hrp.AncestryChanged:Connect(function(_child, parent)
 						if not parent then
 							self:UntrackItem(hrp)
 							currentHrp = nil
