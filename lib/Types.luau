@@ -51,8 +51,8 @@ export type Zone = {
 	UnbindFromGroups: (zone: Zone, ...Group) -> Zone,
 	GetGroups: (zone: Zone) -> { Group },
 	Destroy: (zone: Zone) -> (),
-	index: number,
-	part: BasePart?,
+	Index: number,
+	Part: BasePart?,
 }
 
 export type Callback = (Item, Zone, any?) -> ()
@@ -61,6 +61,14 @@ export type Group = {
 	SetPriority: (self: Group, priority: number) -> Group,
 	TrackItem: (self: Group, item: Item, customData: any?) -> Group,
 	UntrackItem: (self: Group, item: Item) -> Group,
+	TrackLocalPlayer: (self: Group) -> Group,
+	TrackPlayers: (self: Group) -> Group,
+	IsPlayerInside: (self: Group, player: Player) -> boolean,
+	IsLocalPlayerInside: (self: Group) -> boolean,
+	OnLocalPlayerEntered: (self: Group, callback: (Zone) -> ()) -> () -> (),
+	OnLocalPlayerExited: (self: Group, callback: (Zone) -> ()) -> () -> (),
+	OnPlayerEntered: (self: Group, callback: (Player, Zone) -> ()) -> () -> (),
+	OnPlayerExited: (self: Group, callback: (Player, Zone) -> ()) -> () -> (),
 	OnEntered: (self: Group, callback: Callback) -> () -> (),
 	OnExited: (self: Group, callback: Callback) -> () -> (),
 	IsItemInside: (self: Group, item: Item) -> boolean,

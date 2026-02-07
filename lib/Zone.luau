@@ -30,10 +30,9 @@ function Zone.new(cframe: CFrame, size: Vector3, shape: Types.ShapeType, associa
 	State.objects[index] = object
 	State.pendingRebuild = true
 
-	local self = setmetatable({ index = index, part = associatedPart }, Zone)
+	local self = setmetatable({ Index = index, Part = associatedPart }, Zone)
 	State.zoneIndexToZoneObj[index] = (self :: any) :: Types.Zone
 
-	-- Verify binding
 	task.delay(5, function()
 		if State.zoneIndexToZoneObj[index] and not State.zoneWatchingGroups[index] then
 			warn(
@@ -50,8 +49,8 @@ function Zone.new(cframe: CFrame, size: Vector3, shape: Types.ShapeType, associa
 end
 
 function Zone:BindToGroups(...): Types.Zone
-	local watching = State.zoneWatchingGroups[self.index] or {}
-	State.zoneWatchingGroups[self.index] = watching
+	local watching = State.zoneWatchingGroups[self.Index] or {}
+	State.zoneWatchingGroups[self.Index] = watching
 	for _, g in { ... } do
 		if not table.find(watching, g.UID) then
 			table.insert(watching, g.UID)
@@ -62,7 +61,7 @@ function Zone:BindToGroups(...): Types.Zone
 end
 
 function Zone:UnbindFromGroups(...): Types.Zone
-	local watching = State.zoneWatchingGroups[self.index]
+	local watching = State.zoneWatchingGroups[self.Index]
 	if not watching then
 		return self
 	end
@@ -75,7 +74,7 @@ function Zone:UnbindFromGroups(...): Types.Zone
 		end
 	end
 	if #watching == 0 then
-		State.zoneWatchingGroups[self.index] = nil
+		State.zoneWatchingGroups[self.Index] = nil
 	end
 	State.isDirty = true
 
@@ -83,7 +82,7 @@ function Zone:UnbindFromGroups(...): Types.Zone
 end
 
 function Zone:GetGroups(): { Types.Group }
-	local watching = State.zoneWatchingGroups[self.index]
+	local watching = State.zoneWatchingGroups[self.Index]
 	if not watching then
 		return {}
 	end
@@ -99,10 +98,12 @@ function Zone:GetGroups(): { Types.Group }
 end
 
 function Zone:Destroy()
-	State.zoneWatchingGroups[self.index] = nil
-	State.zoneIndexToZoneObj[self.index] = nil
-	State.objects[self.index] = nil
+	State.zoneWatchingGroups[self.Index] = nil
+	State.zoneIndexToZoneObj[self.Index] = nil
+	State.objects[self.Index] = nil
 	State.pendingRebuild = true
+
+	setmetatable(self :: any, nil)
 end
 
 return Zone

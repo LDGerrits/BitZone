@@ -1,10 +1,14 @@
 --!strict
+local Players = game:GetService('Players')
+local RunService = game:GetService('RunService')
 
 local Geometry = require(script.Parent.Geometry)
 local SpatialIndex = require(script.Parent.SpatialIndex)
 local State = require(script.Parent.State)
 local Strategy = require(script.Parent.Strategy)
 local Types = require(script.Parent.Types)
+
+local IS_CLIENT = RunService:IsClient()
 
 local STRAT_POS = Strategy.POS
 local STRAT_PRIM = Strategy.PRIM
@@ -16,7 +20,13 @@ local Group = {}
 Group.__index = Group
 
 function Group.new(priority: number?): Types.Group
-	local g = (setmetatable({ UID = State.nextGroupId }, Group) :: any) :: Types.Group
+	local g = (
+		setmetatable({
+			UID = State.nextGroupId,
+			_mainConnections = {},
+			_playerTrackers = {},
+		}, Group) :: any
+	) :: Types.Group
 
 	State.groupPriorityMap[g.UID] = priority or 1e6
 	State.groupEnteredCallbacks[g.UID] = {}
@@ -55,8 +65,14 @@ function Group:TrackItem(item: Types.Item, customData: any?): Types.Group
 		end
 
 		if not strat then
-			error('Invalid item')
-			return
+			error(
+				string.format(
+					'[BitZone] TrackItem Failed: The provided item (%s) is not a supported type. '
+						.. 'Ensure it is a BasePart, Model, Attachment, Bone, Camera, or a table with a Position/CFrame.',
+					tostring(item)
+				),
+				2
+			)
 		end
 
 		data = {
@@ -120,6 +136,98 @@ function Group:UntrackItem(item: Types.Item): Types.Group
 	end
 
 	return self
+end
+
+function Group:TrackLocalPlayer(): Types.Group
+	assert(IS_CLIENT, '[BitZone] TrackLocalPlayer can only be called on the Client.')
+
+	self:_setupPlayerTracking(Players.LocalPlayer)
+
+	return (self :: any) :: Types.Group
+end
+
+function Group:TrackPlayers(): Types.Group
+	if #self._mainConnections > 0 then
+		return (self :: any) :: Types.Group
+	end
+
+	table.insert(
+		self._mainConnections,
+		Players.PlayerAdded:Connect(function(p)
+			self:_setupPlayerTracking(p)
+		end)
+	)
+
+	table.insert(
+		self._mainConnections,
+		Players.PlayerRemoving:Connect(function(p)
+			self:_teardownPlayerTracking(p)
+		end)
+	)
+
+	for _, p in Players:GetPlayers() do
+		self:_setupPlayerTracking(p)
+	end
+
+	return (self :: any) :: Types.Group
+end
+
+function Group:IsLocalPlayerInside(): boolean
+	if not IS_CLIENT then
+		error('[BitZone] IsLocalPlayerInside can only be called on the Client.', 2)
+	end
+
+	return self:IsPlayerInside(Players.LocalPlayer)
+end
+
+function Group:IsPlayerInside(player: Player): boolean
+	local character = player.Character
+	if not character then
+		return false
+	end
+
+	local hrp = character:FindFirstChild('HumanoidRootPart')
+	if not hrp then
+		return false
+	end
+
+	return self:IsItemInside(hrp)
+end
+
+function Group:OnLocalPlayerEntered(callback: (Types.Zone) -> ()): () -> ()
+	assert(IS_CLIENT, '[BitZone] OnLocalPlayerEntered can only be called on the Client.')
+
+	return self:OnEntered(function(_item, zone, data: { Player: Player })
+		if data and data.Player == Players.LocalPlayer then
+			callback(zone)
+		end
+	end)
+end
+
+function Group:OnLocalPlayerExited(callback: (Types.Zone) -> ()): () -> ()
+	assert(IS_CLIENT, '[BitZone] OnLocalPlayerExited can only be called on the Client.')
+
+	return self:OnExited(function(_item, zone, data: { Player: Player })
+		if data and data.Player == Players.LocalPlayer then
+			callback(zone)
+		end
+	end)
+end
+
+function Group:OnPlayerEntered(callback: (Player, Types.Zone) -> ()): () -> ()
+	return self:OnEntered(function(_item, zone, data: { Player: Player })
+		if data and data.Player then
+			callback(data.Player, zone)
+		end
+	end)
+end
+
+function Group:OnPlayerExited(callback: (Player, Types.Zone) -> ()): () -> ()
+	return self:OnExited(function(_item, zone, data: { Player: Player })
+		if data and data.Player then
+			callback(data.Player, zone)
+		end
+	end)
 end
 
 function Group:SetPriority(p: number): Types.Group
@@ -199,7 +307,7 @@ function Group:IsPointInside(position: Vector3): boolean
 	return isInside
 end
 
-function Group:OnEntered(callback)
+function Group:OnEntered(callback): () -> ()
 	table.insert(State.groupEnteredCallbacks[self.UID], callback)
 	return function()
 		local i = table.find(State.groupEnteredCallbacks[self.UID], callback)
@@ -209,7 +317,7 @@ function Group:OnEntered(callback)
 	end
 end
 
-function Group:OnExited(callback)
+function Group:OnExited(callback): () -> ()
 	table.insert(State.groupExitedCallbacks[self.UID], callback)
 	return function()
 		local i = table.find(State.groupExitedCallbacks[self.UID], callback)
@@ -219,10 +327,11 @@ function Group:OnExited(callback)
 	end
 end
 
-function Group:Destroy()
+function Group:Destroy(): ()
 	local uid = self.UID
 
-	-- Remove from zones
+	self:_cleanupPlayerConnections()
+
 	for _, watchingList in pairs(State.zoneWatchingGroups) do
 		local idx = table.find(watchingList, uid)
 		while idx do
@@ -244,6 +353,90 @@ function Group:Destroy()
 	State.groupUIDToGroupObj[uid] = nil
 
 	State.isDirty = true
+
+	setmetatable(self :: any, nil)
+end
+
+function Group:_setupPlayerTracking(player: Player)
+	if self._playerTrackers[player] then
+		return
+	end
+
+	local charConns: { RBXScriptConnection } = {}
+	local currentHrp: BasePart? = nil
+
+	local function cleanCharacter()
+		if currentHrp then
+			self:UntrackItem(currentHrp)
+			currentHrp = nil
+		end
+		for _, c in charConns do
+			c:Disconnect()
+		end
+		table.clear(charConns)
+	end
+
+	local function onCharAdded(char: Model)
+		cleanCharacter()
+
+		task.spawn(function()
+			local hrp = char:WaitForChild('HumanoidRootPart', 10)
+
+			if not self._playerTrackers[player] then
+				return
+			end
+
+			if player.Character ~= char then
+				return
+			end
+
+			if hrp and hrp:IsA('BasePart') then
+				currentHrp = hrp
+				self:TrackItem(hrp, { Player = player })
+
+				table.insert(
+					charConns,
+					hrp.AncestryChanged:Connect(function(child, parent)
+						if not parent then
+							self:UntrackItem(hrp)
+							currentHrp = nil
+						end
+					end)
+				)
+			end
+		end)
+	end
+
+	local addedConn = player.CharacterAdded:Connect(onCharAdded)
+
+	self._playerTrackers[player] = function()
+		addedConn:Disconnect()
+		cleanCharacter()
+	end
+
+	if player.Character then
+		onCharAdded(player.Character)
+	end
+end
+
+function Group:_teardownPlayerTracking(player: Player)
+	local cleanup = self._playerTrackers[player]
+	if cleanup then
+		cleanup()
+		self._playerTrackers[player] = nil
+	end
+end
+
+function Group:_cleanupAllPlayers()
+	for _, conn in self._mainConnections do
+		conn:Disconnect()
+	end
+	table.clear(self._mainConnections)
+
+	for _, cleanup in pairs(self._playerTrackers) do
+		cleanup()
+	end
+	table.clear(self._playerTrackers)
 end
 
 return Group
