@@ -21,7 +21,7 @@ local Group = {}
 Group.__index = Group
 
 function Group.new(priority: number?): Types.Group
-	local g = (
+	local group = (
 		setmetatable({
 			UID = State.nextGroupId,
 			_mainConnections = {},
@@ -29,14 +29,14 @@ function Group.new(priority: number?): Types.Group
 		}, Group) :: any
 	) :: Types.Group
 
-	State.groupPriorityMap[g.UID] = priority or 0
-	State.groupEnteredCallbacks[g.UID] = {}
-	State.groupExitedCallbacks[g.UID] = {}
-	State.groupActiveMembers[g.UID] = setmetatable({}, { __mode = 'k' }) :: any
-	State.groupUIDToGroupObj[g.UID] = g
+	State.groupPriorityMap[group.UID] = priority or 0
+	State.groupEnteredCallbacks[group.UID] = {}
+	State.groupExitedCallbacks[group.UID] = {}
+	State.groupTrackingItems[group.UID] = setmetatable({}, { __mode = 'k' }) :: any
+	State.groupUIDToGroupObj[group.UID] = group
 
 	State.nextGroupId += 1
-	return g
+	return group
 end
 
 function Group:TrackItem(item: Types.Item, customData: any?): Types.Group
@@ -108,8 +108,8 @@ function Group:UntrackItem(item: Types.Item): Types.Group
 	-- Exit Logic
 	local oldZoneIdx = data.activeGroupMemberships[self.UID]
 	if oldZoneIdx then
-		if State.groupActiveMembers[self.UID] then
-			State.groupActiveMembers[self.UID][item] = nil
+		if State.groupTrackingItems[self.UID] then
+			State.groupTrackingItems[self.UID][item] = nil
 		end
 
 		local cbs = State.groupExitedCallbacks[self.UID]
@@ -255,29 +255,29 @@ end
 
 function Group:GetTrackedItems(): { Types.Item }
 	local results = {}
-	for t, data in pairs(State.items) do
+	for item, data in State.items do
 		if data.memberOfGroups[self.UID] then
-			table.insert(results, t)
+			table.insert(results, item)
 		end
 	end
 	return results
 end
 
 function Group:GetItemsInside(): { Types.Item }
-	local members = State.groupActiveMembers[self.UID]
-	if not members then
+	local items = State.groupTrackingItems[self.UID]
+	if not items then
 		return {}
 	end
 	local results = {}
-	for t, _ in pairs(members) do
-		table.insert(results, t)
+	for item, _ in items do
+		table.insert(results, item)
 	end
 	return results
 end
 
 function Group:GetZones(): { Types.Zone }
 	local results = {}
-	for zoneIdx, boundList in pairs(State.zoneBoundGroups) do
+	for zoneIdx, boundList in State.zoneBoundGroups do
 		if table.find(boundList, self.UID) then
 			local zone = State.zoneIndexToZoneObj[zoneIdx]
 			if zone then
@@ -333,7 +333,7 @@ function Group:Destroy(): ()
 
 	self:_cleanupPlayerConnections()
 
-	for _, boundList in pairs(State.zoneBoundGroups) do
+	for _, boundList in State.zoneBoundGroups do
 		local idx = table.find(boundList, uid)
 		while idx do
 			table.remove(boundList, idx)
@@ -341,16 +341,16 @@ function Group:Destroy(): ()
 		end
 	end
 
-	for t, data in pairs(State.items) do
+	for item, data in State.items do
 		if data.memberOfGroups[uid] then
-			self:UntrackItem(t)
+			self:UntrackItem(item)
 		end
 	end
 
 	State.groupPriorityMap[uid] = nil
 	State.groupEnteredCallbacks[uid] = nil
 	State.groupExitedCallbacks[uid] = nil
-	State.groupActiveMembers[uid] = nil
+	State.groupTrackingItems[uid] = nil
 	State.groupUIDToGroupObj[uid] = nil
 
 	State.isDirty = true
@@ -434,7 +434,7 @@ function Group:_cleanupAllPlayers()
 	end
 	table.clear(self._mainConnections)
 
-	for _, cleanup in pairs(self._playerTrackers) do
+	for _, cleanup in self._playerTrackers do
 		cleanup()
 	end
 	table.clear(self._playerTrackers)

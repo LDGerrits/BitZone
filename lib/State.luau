@@ -16,7 +16,7 @@ State.frameBudget = 1 / 1000
 State.items = (setmetatable({}, { __mode = 'k' }) :: any) :: { [Types.Item]: Types.ItemData }
 State.itemCustomData = (setmetatable({}, { __mode = 'k' }) :: any) :: { [Types.Item]: { [number]: any } }
 
-State.groupActiveMembers = {} :: { [number]: { [Types.Item]: boolean } }
+State.groupTrackingItems = {} :: { [number]: { [Types.Item]: boolean } }
 State.groupPriorityMap = {} :: { [number]: number }
 State.groupEnteredCallbacks = {} :: { [number]: { Types.Callback } }
 State.groupExitedCallbacks = {} :: { [number]: { Types.Callback } }

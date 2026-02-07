@@ -51,9 +51,9 @@ end
 function Zone:BindToGroups(...): Types.Zone
 	local bound = State.zoneBoundGroups[self.Index] or {}
 	State.zoneBoundGroups[self.Index] = bound
-	for _, g in { ... } do
-		if not table.find(bound, g.UID) then
-			table.insert(bound, g.UID)
+	for _, group in { ... } do
+		if not table.find(bound, group.UID) then
+			table.insert(bound, group.UID)
 		end
 	end
 	State.isDirty = true
@@ -66,11 +66,11 @@ function Zone:UnbindFromGroups(...): Types.Zone
 		return self
 	end
 
-	for _, g in { ... } do
-		local idx = table.find(bound, g.UID)
+	for _, group in { ... } do
+		local idx = table.find(bound, group.UID)
 		while idx do
 			table.remove(bound, idx)
-			idx = table.find(bound, g.UID)
+			idx = table.find(bound, group.UID)
 		end
 	end
 	if #bound == 0 then

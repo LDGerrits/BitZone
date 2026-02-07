@@ -17,7 +17,7 @@ local zoneBoundGroups = State.zoneBoundGroups
 local groupPriorityMap = State.groupPriorityMap
 local itemCustomData = State.itemCustomData
 local groupEnteredCallbacks = State.groupEnteredCallbacks
-local groupActiveMembers = State.groupActiveMembers
+local groupTrackingItems = State.groupTrackingItems
 local groupExitedCallbacks = State.groupExitedCallbacks
 local zoneIndexToZoneObj = State.zoneIndexToZoneObj
 
@@ -154,8 +154,8 @@ RunService.Heartbeat:Connect(function()
 			if not newPri or newPri < ctx_highestWin then
 				current[gUID] = nil
 
-				if groupActiveMembers[gUID] then
-					groupActiveMembers[gUID][item] = nil
+				if groupTrackingItems[gUID] then
+					groupTrackingItems[gUID][item] = nil
 				end
 
 				local zone = zoneIndexToZoneObj[oldZoneIdx]
@@ -174,7 +174,7 @@ RunService.Heartbeat:Connect(function()
 					local newZoneIdx = ctx_candidateIndex[gUID]
 					current[gUID] = newZoneIdx
 
-					groupActiveMembers[gUID][item] = true
+					groupTrackingItems[gUID][item] = true
 
 					local zone = zoneIndexToZoneObj[newZoneIdx]
 					local cd = itemCustomData[item] and itemCustomData[item][gUID]
@@ -247,10 +247,10 @@ return {
 			return {}
 		end
 		local results = {}
-		for gUID, _ in pairs(data.memberOfGroups) do
-			local g = State.groupUIDToGroupObj[gUID]
-			if g then
-				table.insert(results, g)
+		for gUID, _ in data.memberOfGroups do
+			local group = State.groupUIDToGroupObj[gUID]
+			if group then
+				table.insert(results, group)
 			end
 		end
 		return results
@@ -262,10 +262,10 @@ return {
 			return {}
 		end
 		local results = {}
-		for gUID, _ in pairs(data.activeGroupMemberships) do
-			local g = State.groupUIDToGroupObj[gUID]
-			if g then
-				table.insert(results, g)
+		for gUID, _ in data.activeGroupMemberships do
+			local group = State.groupUIDToGroupObj[gUID]
+			if group then
+				table.insert(results, group)
 			end
 		end
 		return results
@@ -282,9 +282,9 @@ return {
 						for _, uid in groups do
 							if not foundUIDs[uid] then
 								foundUIDs[uid] = true
-								local g = State.groupUIDToGroupObj[uid]
-								if g then
-									table.insert(results, g)
+								local group = State.groupUIDToGroupObj[uid]
+								if group then
+									table.insert(results, group)
 								end
 							end
 						end
