@@ -13,6 +13,10 @@ local objects = State.objects
 local zoneBoundGroups = State.zoneBoundGroups
 local groupUIDToGroupObj = State.groupUIDToGroupObj
 
+export type Zone = Types.Zone
+export type Group = Types.Group
+export type Item = Types.Item
+
 local BitZone = {}
 
 function BitZone:SetFrameBudget(n: number)
