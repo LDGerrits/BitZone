@@ -33,6 +33,19 @@ function Zone.new(cframe: CFrame, size: Vector3, shape: Types.ShapeType, associa
 	local self = setmetatable({ index = index, part = associatedPart }, Zone)
 	State.zoneIndexToZoneObj[index] = (self :: any) :: Types.Zone
 
+	-- Verify binding
+	task.delay(5, function()
+		if State.zoneIndexToZoneObj[index] and not State.zoneWatchingGroups[index] then
+			warn(
+				string.format(
+					'[BitZone] Warning: Zone (Index %d) has been active for 5s without being bound to a Group. '
+						.. 'It will not process any detections. Use :BindToGroups() to activate it.',
+					index
+				)
+			)
+		end
+	end)
+
 	return (self :: any) :: Types.Zone
 end
 
