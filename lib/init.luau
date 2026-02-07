@@ -55,11 +55,9 @@ local function queryCallback(zoneId: number)
 
 	local memberOfGroups = ctx_data.memberOfGroups
 
-	-- If the item isn't a member of any group this zone is bound to, skip the geometry entirely.
 	local isMemberOfAny = false
 	for _, gUID in groups do
 		if memberOfGroups[gUID] then
-			-- Early exit if this group was already found this frame.
 			if not ctx_candidatePriority[gUID] then
 				isMemberOfAny = true
 				break
@@ -75,7 +73,6 @@ local function queryCallback(zoneId: number)
 		return
 	end
 
-	-- Process the groups
 	for _, gUID in groups do
 		if memberOfGroups[gUID] then
 			local pri = groupPriorityMap[gUID] or 0

@@ -3,8 +3,6 @@
 
 local Types = require(script.Parent.Types)
 
-local Geometry = {}
-
 local MORTON_SHIFT16_MASK = 0xFF0000FF
 local MORTON_SHIFT8_MASK = 0xF00F00F
 local MORTON_SHIFT4_MASK = 0x30C30C3
@@ -27,6 +25,8 @@ end
 local function expandBits(value: number): number
 	return expandLUT[bit32.band(value, 0x3FF) + 1]
 end
+
+local Geometry = {}
 
 function Geometry.UnionBounds(minA: Vector3, maxA: Vector3, minB: Vector3, maxB: Vector3): (Vector3, Vector3)
 	return vector.min(minA, minB), vector.max(maxA, maxB)
