@@ -29,9 +29,8 @@ local ctx_candidateList: { [number]: number } = table.create(16)
 
 local SAFETY_MODE = true
 local FRAME_BUDGET = 1 / 1000
-
-local MOVE_THRESHOLD = 0.1
-local MOVE_THRESHOLD_SQ = MOVE_THRESHOLD * MOVE_THRESHOLD
+local PRECISION = 0.1
+local PRECISION_SQ = PRECISION * PRECISION
 
 local STRAT_POS = Strategy.POS
 local STRAT_PRIM = Strategy.PRIM
@@ -136,7 +135,7 @@ RunService.Heartbeat:Connect(function()
 			local dy = pos.Y - lastPos.Y
 			local dz = pos.Z - lastPos.Z
 			local d2 = (dx * dx) + (dy * dy) + (dz * dz)
-			if d2 < MOVE_THRESHOLD_SQ then
+			if d2 < PRECISION_SQ then
 				continue
 			end
 		end
@@ -205,6 +204,11 @@ local Scheduler = {}
 
 function Scheduler.SetFrameBudget(n: number)
 	FRAME_BUDGET = n
+end
+
+function Scheduler.SetPrecision(n: number)
+	PRECISION = n
+	PRECISION_SQ = PRECISION * PRECISION
 end
 
 function Scheduler.DisableSafetyMode()

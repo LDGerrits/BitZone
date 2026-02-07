@@ -45,6 +45,20 @@ export type ItemData = {
 	isDirty: boolean,
 }
 
+export type BitZone = {
+	SetFrameBudget: (self: BitZone, n: number) -> BitZone,
+	SetPrecision: (self: BitZone, n: number) -> BitZone,
+	DisableSafetyMode: (self: BitZone) -> BitZone,
+	newZone: (cframe: CFrame, size: Vector3, shape: Types.ShapeType, associatedPart: BasePart?) -> Zone,
+	newZoneFromPart: (part: BasePart) -> Zone,
+	newGroup: (priority: number?) -> Group,
+	CanItemBeTracked: (self: BitZone, item: any) -> boolean,
+	IsItemTracked: (self: BitZone, item: Item) -> boolean,
+	GetGroupsForItem: (self: BitZone, item: Item) -> { Group },
+	GetGroupsAtItem: (self: BitZone, item: Item) -> { Group },
+	GetGroupsAtPoint: (self: BitZone, position: Vector3) -> { Group },
+}
+
 export type Zone = {
 	BindToGroups: (zone: Zone, ...Group) -> Zone,
 	UnbindFromGroups: (zone: Zone, ...Group) -> Zone,
