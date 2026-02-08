@@ -1,5 +1,6 @@
 [package]
 name = "ldgerrits/bitzone"
+description = "A high-performance, low-footprint, spatial query module"
 version = "0.1.0"
 registry = "https://github.com/UpliftGames/wally-index"
 realm = "shared"
@@ -10,4 +11,5 @@ include = [
 	"lib/**/*.luau",
 	"wally.toml",
 	"default.project.json",
+	"LICENSE.md"
 ]
