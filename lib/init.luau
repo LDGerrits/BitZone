@@ -145,4 +145,24 @@ function BitZone:GetGroupsAtPoint(position: Vector3): { Group }
 	return results
 end
 
+function BitZone:UntrackItemFromAll(item: Types.Item): BitZone
+	local data = State.items[item]
+	if not data then
+		return BitZone
+	end
+
+	local groupsToUntrack = {}
+	for groupUID, _ in data.memberOfGroups do
+		table.insert(groupsToUntrack, groupUID)
+	end
+
+	for _, uid in groupsToUntrack do
+		local group = State.groupUIDToGroupObj[uid]
+		if group then
+			group:UntrackItem(item)
+		end
+	end
+	return BitZone
+end
+
 return BitZone

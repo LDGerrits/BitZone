@@ -35,29 +35,28 @@ export type ItemTable = {
 
 export type Item = BasePart | Model | Camera | Attachment | Bone | ItemTable
 
-export type UID = number
-
 export type ItemData = {
-	activeGroupMemberships: { [UID]: number },
-	memberOfGroups: { [UID]: boolean },
+	activeGroupMemberships: { [number]: number },
+	memberOfGroups: { [number]: boolean },
 	lastPosition: Vector3,
 	strategy: number,
 	isDirty: boolean,
 }
 
 export type BitZone = {
-	SetFrameBudget: (self: BitZone, n: number) -> BitZone,
-	SetUpdateRate: (n: number) -> BitZone,
-	SetPrecision: (self: BitZone, n: number) -> BitZone,
-	DisableSafetyMode: (self: BitZone) -> BitZone,
-	newZone: (cframe: CFrame, size: Vector3, shape: Types.ShapeType, associatedPart: BasePart?) -> Zone,
+	newZone: (cframe: CFrame, size: Vector3, shape: ShapeType, associatedPart: BasePart?) -> Zone,
 	newZoneFromPart: (part: BasePart) -> Zone,
 	newGroup: (priority: number?) -> Group,
+	SetFrameBudget: (self: BitZone, n: number) -> BitZone,
+	SetUpdateRate: (self: BitZone, n: number) -> BitZone,
+	SetPrecision: (self: BitZone, n: number) -> BitZone,
+	DisableSafetyMode: (self: BitZone) -> BitZone,
 	CanItemBeTracked: (self: BitZone, item: any) -> boolean,
 	IsItemTracked: (self: BitZone, item: Item) -> boolean,
 	GetGroupsForItem: (self: BitZone, item: Item) -> { Group },
 	GetGroupsAtItem: (self: BitZone, item: Item) -> { Group },
 	GetGroupsAtPoint: (self: BitZone, position: Vector3) -> { Group },
+	UntrackItemFromAll: (self: BitZone, item: Item) -> BitZone,
 }
 
 export type Zone = {
@@ -92,7 +91,7 @@ export type Group = {
 	GetItemsInside: (self: Group) -> { Item },
 	GetZones: (self: Group) -> { Zone },
 	Destroy: (self: Group) -> (),
-	UID: UID,
+	UID: number,
 }
 
 return nil
