@@ -1,0 +1,11 @@
+{
+	"name": "bitzone-serve",
+	"tree": {
+		"$className": "DataModel",
+		"ReplicatedStorage": {
+			"BitZone": {
+				"$path": "default.project.json"
+			}
+		}
+	}
+}
