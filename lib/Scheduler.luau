@@ -7,8 +7,9 @@ local Geometry = require(script.Parent.Geometry)
 local LinearBVH = require(script.Parent.LinearBVH)
 local Types = require(script.Parent.Types)
 local State = require(script.Parent.State)
-local Strategy = require(script.Parent.Strategy)
+local Config = require(script.Parent.Config)
 
+local itemList = State.itemList
 local items = State.items
 local objects = State.objects
 local zoneBoundGroups = State.zoneBoundGroups
@@ -19,6 +20,7 @@ local groupTrackingItems = State.groupTrackingItems
 local groupExitedCallbacks = State.groupExitedCallbacks
 local zoneIndexToZoneObj = State.zoneIndexToZoneObj
 
+local lastProcessedIndex = 1
 local ctx_pos: Vector3
 local ctx_data: Types.ItemData
 local ctx_cCount: number = 0
@@ -27,22 +29,23 @@ local ctx_candidatePriority: { [number]: number } = table.create(16)
 local ctx_candidateIndex: { [number]: number } = table.create(16)
 local ctx_candidateList: { [number]: number } = table.create(16)
 
-local SAFETY_MODE = true
-local FRAME_BUDGET = 1 / 1000
-local PRECISION = 0.1
-local PRECISION_SQ = PRECISION * PRECISION
+local safetyMode = Config.Scheduler.SafetyMode
+local frameBudget = Config.Scheduler.FrameBudget
+local updateRate = Config.Scheduler.UpdateRate
+local precision = Config.Scheduler.Precision
+local precisionSq = precision * precision
 
-local STRAT_POS = Strategy.POS
-local STRAT_PRIM = Strategy.PRIM
-local STRAT_WORLD = Strategy.WORLD
-local STRAT_CFRAME = Strategy.CFRAME
+local STRAT_POS = Config.Strategy.POS
+local STRAT_PRIM = Config.Strategy.PRIM
+local STRAT_WORLD = Config.Strategy.WORLD
+local STRAT_CFRAME = Config.Strategy.CFRAME
 
 local function fireCallback(callbacks, item, zone, customData)
 	if not callbacks then
 		return
 	end
 
-	if SAFETY_MODE then
+	if safetyMode then
 		for _, cb in callbacks do
 			task.spawn(cb, item, zone, customData)
 		end
@@ -95,7 +98,7 @@ local function queryCallback(zoneId: number)
 	end
 end
 
-RunService.Heartbeat:Connect(function()
+RunService.Heartbeat:Connect(function(dt: number)
 	if State.pendingRebuild then
 		debug.profilebegin('QuickBounds_Build')
 		State.rootNode = LinearBVH.Build(objects)
@@ -114,9 +117,30 @@ RunService.Heartbeat:Connect(function()
 	local forceRefresh = State.isDirty
 	State.isDirty = false
 
-	for item, data in items do
+	local totalItems = #itemList
+	if totalItems == 0 then
+		return
+	end
+
+	local workQuota = math.ceil(totalItems * updateRate * dt)
+	if workQuota < 1 then
+		workQuota = 1
+	end
+	if workQuota > totalItems then
+		workQuota = totalItems
+	end
+
+	if lastProcessedIndex > totalItems then
+		lastProcessedIndex = 1
+	end
+
+	while processed < workQuota do
+		local item = itemList[lastProcessedIndex]
+		local data = items[item]
+
 		local pos
 		local strategy = data.strategy
+
 		if strategy == STRAT_POS then
 			pos = (item :: any).Position
 		elseif strategy == STRAT_WORLD then
@@ -129,53 +153,54 @@ RunService.Heartbeat:Connect(function()
 			pos = (item :: any):GetPivot().Position
 		end
 
-		if not forceRefresh and not data.isDirty then
+		local shouldCheck = forceRefresh or data.isDirty
+		if not shouldCheck then
 			local lastPos = data.lastPosition
 			local dx = pos.X - lastPos.X
 			local dy = pos.Y - lastPos.Y
 			local dz = pos.Z - lastPos.Z
 			local d2 = (dx * dx) + (dy * dy) + (dz * dz)
-			if d2 < PRECISION_SQ then
-				continue
+			if d2 >= precisionSq then
+				shouldCheck = true
 			end
 		end
 
-		data.lastPosition = pos
-		data.isDirty = false
+		if shouldCheck then
+			data.lastPosition = pos
+			data.isDirty = false
 
-		-- Query spatial map
-		ctx_pos = pos
-		ctx_data = data
-		ctx_cCount = 0
-		ctx_highestWin = -math.huge
+			-- Query spatial map
+			ctx_pos = pos
+			ctx_data = data
+			ctx_cCount = 0
+			ctx_highestWin = -math.huge
 
-		LinearBVH.QueryPoint(State.rootNode, pos, queryCallback)
+			LinearBVH.QueryPoint(State.rootNode, pos, queryCallback)
 
-		local current = data.activeGroupMemberships
+			local current = data.activeGroupMemberships
 
-		-- Check exits
-		for gUID, oldZoneIdx in current do
-			local newPri = ctx_candidatePriority[gUID]
-			if not newPri or newPri < ctx_highestWin then
-				current[gUID] = nil
+			-- Check exits
+			for gUID, oldZoneIdx in current do
+				local newPri = ctx_candidatePriority[gUID]
+				if not newPri or newPri < ctx_highestWin then
+					current[gUID] = nil
 
-				if groupTrackingItems[gUID] then
-					groupTrackingItems[gUID][item] = nil
+					if groupTrackingItems[gUID] then
+						groupTrackingItems[gUID][item] = nil
+					end
+
+					local zone = zoneIndexToZoneObj[oldZoneIdx]
+					local cd = itemCustomData[item] and itemCustomData[item][gUID]
+					fireCallback(groupExitedCallbacks[gUID], item, zone, cd)
 				end
-
-				local zone = zoneIndexToZoneObj[oldZoneIdx]
-				local cd = itemCustomData[item] and itemCustomData[item][gUID]
-				fireCallback(groupExitedCallbacks[gUID], item, zone, cd)
 			end
-		end
 
-		-- Check entries
-		for i = 1, ctx_cCount do
-			local gUID = ctx_candidateList[i]
-			local pri = ctx_candidatePriority[gUID]
+			-- Check entries
+			for i = 1, ctx_cCount do
+				local gUID = ctx_candidateList[i]
+				local pri = ctx_candidatePriority[gUID]
 
-			if pri >= ctx_highestWin then
-				if not current[gUID] then
+				if pri >= ctx_highestWin and not current[gUID] then
 					local newZoneIdx = ctx_candidateIndex[gUID]
 					current[gUID] = newZoneIdx
 
@@ -185,15 +210,21 @@ RunService.Heartbeat:Connect(function()
 					local cd = itemCustomData[item] and itemCustomData[item][gUID]
 					fireCallback(groupEnteredCallbacks[gUID], item, zone, cd)
 				end
-			end
 
-			ctx_candidatePriority[gUID] = nil
-			ctx_candidateIndex[gUID] = nil
-			ctx_candidateList[i] = nil
+				ctx_candidatePriority[gUID] = nil
+				ctx_candidateIndex[gUID] = nil
+				ctx_candidateList[i] = nil
+			end
+		end
+
+		lastProcessedIndex += 1
+		if lastProcessedIndex > totalItems then
+			lastProcessedIndex = 1
 		end
 
 		processed += 1
-		if processed % 32 == 0 and (os.clock() - start) > FRAME_BUDGET then
+
+		if processed % 32 == 0 and (os.clock() - start) > frameBudget then
 			break
 		end
 	end
@@ -202,17 +233,20 @@ end)
 
 local Scheduler = {}
 
+function Scheduler.SetUpdateRate(n: number)
+	updateRate = n
+end
+
 function Scheduler.SetFrameBudget(n: number)
-	FRAME_BUDGET = n
+	frameBudget = n
 end
 
 function Scheduler.SetPrecision(n: number)
-	PRECISION = n
-	PRECISION_SQ = PRECISION * PRECISION
+	precisionSq = n * n
 end
 
 function Scheduler.DisableSafetyMode()
-	SAFETY_MODE = false
+	safetyMode = false
 end
 
 return Scheduler

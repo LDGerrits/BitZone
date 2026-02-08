@@ -27,6 +27,13 @@ function BitZone:SetFrameBudget(n: number): BitZone
 	return BitZone
 end
 
+function BitZone:SetUpdateRate(n: number): BitZone
+	assert(n > 0, '[BitZone] UpdateRate must be greater than 0')
+
+	Scheduler.SetFrameBudget(n)
+	return BitZone
+end
+
 function BitZone:SetPrecision(n: number): BitZone
 	assert(n >= 0, '[BitZone] Precision must be non-negative')
 

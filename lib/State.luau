@@ -12,8 +12,10 @@ State.rootNode = nil :: Types.Node?
 State.pendingRebuild = false
 State.isDirty = false
 
-State.items = (setmetatable({}, { __mode = 'k' }) :: any) :: { [Types.Item]: Types.ItemData }
-State.itemCustomData = (setmetatable({}, { __mode = 'k' }) :: any) :: { [Types.Item]: { [number]: any } }
+State.items = {} :: { [Types.Item]: Types.ItemData }
+State.itemList = {} :: { Types.Item }
+State.itemIndices = {} :: { [Types.Item]: number }
+State.itemCustomData = {} :: { [Types.Item]: { [number]: any } }
 
 State.groupTrackingItems = {} :: { [number]: { [Types.Item]: boolean } }
 State.groupPriorityMap = {} :: { [number]: number }

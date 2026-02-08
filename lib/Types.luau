@@ -47,6 +47,7 @@ export type ItemData = {
 
 export type BitZone = {
 	SetFrameBudget: (self: BitZone, n: number) -> BitZone,
+	SetUpdateRate: (n: number) -> BitZone,
 	SetPrecision: (self: BitZone, n: number) -> BitZone,
 	DisableSafetyMode: (self: BitZone) -> BitZone,
 	newZone: (cframe: CFrame, size: Vector3, shape: Types.ShapeType, associatedPart: BasePart?) -> Zone,
