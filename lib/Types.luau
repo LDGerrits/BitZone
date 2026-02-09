@@ -25,13 +25,6 @@ export type Node = {
 	id: number, -- -1 for internal nodes
 }
 
-export type ItemData = {
-	activeGroupMemberships: { [number]: number },
-	lastPosition: Vector3,
-	strategy: number,
-	isDirty: boolean,
-}
-
 export type BitZone = {
 	-- Factories
 	newZone: (cframe: CFrame, size: Vector3, shape: ShapeType, associatedPart: BasePart?) -> Zone,
@@ -167,5 +160,12 @@ export type ItemTable = {
 }
 
 export type Item = BasePart | Model | Camera | Attachment | Bone | ItemTable
+
+export type ItemData = {
+	activeGroupMemberships: { [number]: number },
+	lastPosition: Vector3,
+	strategy: number,
+	isDirty: boolean,
+}
 
 return nil

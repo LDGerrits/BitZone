@@ -53,7 +53,6 @@ function Group:UntrackCollection(collection: Types.Collection): Types.Group
 		State.collectionToGroups[colID][self.UID] = nil
 	end
 
-	-- Force evict items from this collection
 	local safetyMode = collection.Settings.SafetyMode
 	for _, item in collection.Items do
 		local data = collection.ItemData[item]
@@ -176,9 +175,19 @@ function Group:GetZones(): { Types.Zone }
 	return results
 end
 
--- TODO
 function Group:GetCollections(): { Types.Collection }
-	return {}
+	local result = {}
+
+	for colID, groupsMap in pairs(State.collectionToGroups) do
+		if groupsMap[self.UID] then
+			local collection = State.collections[colID]
+			if collection then
+				table.insert(result, collection)
+			end
+		end
+	end
+
+	return result
 end
 
 function Group:OnEntered(callback): () -> ()

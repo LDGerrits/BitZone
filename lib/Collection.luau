@@ -165,7 +165,7 @@ function Collection:Remove(item: Types.Item): Types.Collection
 		end
 	end
 
-	-- Swap-Remove from Array
+	-- Swap-remove from Array
 	local idx = self.ItemIndices[item]
 	local lastIdx = #self.Items
 	local lastItem = self.Items[lastIdx]
@@ -187,14 +187,26 @@ function Collection:Remove(item: Types.Item): Types.Collection
 	return self
 end
 
--- TODO
 function Collection:GetItems(): { Types.Item }
-	return {}
+	local result = table.create(#self.Items)
+	table.move(self.Items, 1, #self.Items, 1, result)
+	return result
 end
 
---TODO
 function Collection:GetGroups(): { Types.Group }
-	return {}
+	local result = {}
+	local groupsMap = State.collectionToGroups[self.ID]
+
+	if groupsMap then
+		for groupUID, _ in pairs(groupsMap) do
+			local group = State.groupUIDToGroupObj[groupUID]
+			if group then
+				table.insert(result, group)
+			end
+		end
+	end
+
+	return result
 end
 
 function Collection:Destroy(): ()

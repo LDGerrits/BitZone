@@ -103,29 +103,48 @@ function BitZone:GetGroupsAtPoint(position: Vector3): { Group }
 	return results
 end
 
--- TODO
-function BitZone:GetCollectionOfItem(item: Item): Collection?
-	return State.itemToCollection[item]
+function BitZone:GetCollectionOfItem(item: Types.Item): Types.Collection?
+	local colID = State.itemToCollection[item]
+	if colID then
+		return State.collections[colID]
+	end
+	return nil
 end
 
--- TODO
-function BitZone:GetZones(): { Zone }
-	return {}
+function BitZone:GetZones(): { Types.Zone }
+	local result = {}
+	for _, zone in pairs(State.zoneIndexToZoneObj) do
+		table.insert(result, zone)
+	end
+	return result
 end
 
--- TODO
-function BitZone:GetGroups(): { Group }
-	return {}
+function BitZone:GetGroups(): { Types.Group }
+	local result = {}
+	for _, group in pairs(State.groupUIDToGroupObj) do
+		table.insert(result, group)
+	end
+	return result
 end
 
--- TODO
-function BitZone:GetCollections(): { Collection }
-	return {}
+function BitZone:GetCollections(): { Types.Collection }
+	local result = {}
+	for _, collection in pairs(State.collections) do
+		table.insert(result, collection)
+	end
+	return result
 end
 
--- TODO
-function BitZone:GetItems(): { Item }
-	return {}
+function BitZone:GetItems(): { Types.Item }
+	local result = {}
+	for _, collection in pairs(State.collections) do
+		local count = #collection.Items
+		if count > 0 then
+			local currentSize = #result
+			table.move(collection.Items, 1, count, currentSize + 1, result)
+		end
+	end
+	return result
 end
 
 function BitZone:IsItemValidType(item: any): boolean
