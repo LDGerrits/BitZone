@@ -119,10 +119,10 @@ RunService.Heartbeat:Connect(function(dt: number)
 			continue
 		end
 
-		local settings = col.Settings
-		local rate = settings.UpdateRate or 20
-		local precSq = settings.PrecisionSq or 0.01
-		local safeMode = settings.SafetyMode
+		local config = col.Config
+		local rate = config.UpdateRate or 20
+		local precSq = config.PrecisionSq or 0.01
+		local safeMode = config.SafetyMode
 
 		local workQuota = math.ceil(totalItems * rate * dt)
 		if workQuota < 1 then

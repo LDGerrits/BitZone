@@ -52,7 +52,7 @@ export type BitZone = {
 		}?
 	) -> Collection,
 
-	-- Global settings
+	-- Global config
 	SetFrameBudget: (self: BitZone, n: number) -> BitZone,
 
 	-- Getters
@@ -90,7 +90,7 @@ export type Group = {
 	-- Lifecycle
 	Destroy: (self: Group) -> (),
 
-	-- Settings
+	-- Config
 	SetPriority: (self: Group, n: number) -> Group,
 
 	-- State
@@ -125,10 +125,18 @@ export type Collection = {
 	-- Lifecycle
 	Destroy: (self: Collection) -> (),
 
-	-- Settings
+	-- Config
 	SetUpdateRate: (self: Collection, hz: number) -> Collection,
 	SetPrecision: (self: Collection, n: number) -> Collection,
 	SetSafetyMode: (self: Collection, enabled: boolean) -> Collection,
+	SetConfig: (
+		self: Collection,
+		{
+			UpdateRate: number?,
+			Precision: number?,
+			SafetyMode: boolean?,
+		}?
+	) -> Collection,
 
 	-- State
 	Add: (self: Collection, item: Item, customData: any?) -> Collection,
@@ -137,13 +145,18 @@ export type Collection = {
 	-- Getters
 	GetItems: (self: Collection) -> { Item },
 	GetGroups: (self: Collection) -> { Group },
+	GetConfig: (self: Collection) -> {
+		UpdateRate: number,
+		Precision: number,
+		SafetyMode: boolean,
+	},
 
 	-- Props
 	ID: number,
 	Items: { Item },
 	ItemIndices: { [Item]: number },
 	ItemData: { [Item]: ItemData },
-	Settings: {
+	Config: {
 		UpdateRate: number,
 		PrecisionSq: number,
 		SafetyMode: boolean,

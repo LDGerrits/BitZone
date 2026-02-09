@@ -53,7 +53,7 @@ function Group:UntrackCollection(collection: Types.Collection): Types.Group
 		State.collectionToGroups[colID][self.UID] = nil
 	end
 
-	local safetyMode = collection.Settings.SafetyMode
+	local safetyMode = collection.Config.SafetyMode
 	for _, item in collection.Items do
 		local data = collection.ItemData[item]
 		local oldZoneIdx = data and data.activeGroupMemberships[self.UID]
