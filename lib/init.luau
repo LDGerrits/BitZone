@@ -1,5 +1,8 @@
 --!strict
+local Players = game:GetService('Players')
+local RunService = game:GetService('RunService')
 
+local Collection = require(script.Collection)
 local Geometry = require(script.Geometry)
 local LinearBVH = require(script.LinearBVH)
 local Types = require(script.Types)
@@ -8,43 +11,20 @@ local Zone = require(script.Zone)
 local Group = require(script.Group)
 local Scheduler = require(script.Scheduler)
 
-local items = State.items
 local objects = State.objects
 local zoneBoundGroups = State.zoneBoundGroups
 local groupUIDToGroupObj = State.groupUIDToGroupObj
 
+local IS_CLIENT = RunService:IsClient()
+
 export type BitZone = Types.BitZone
 export type Zone = Types.Zone
 export type Group = Types.Group
+export type Collection = Types.Collection
 export type Item = Types.Item
+export type CollectionConfig = Types.CollectionConfig
 
 local BitZone = {}
-
-function BitZone:SetFrameBudget(n: number): BitZone
-	assert(n > 0, '[BitZone] FrameBudget must be greater than 0')
-
-	Scheduler.SetFrameBudget(n)
-	return BitZone
-end
-
-function BitZone:SetUpdateRate(n: number): BitZone
-	assert(n > 0, '[BitZone] UpdateRate must be greater than 0')
-
-	Scheduler.SetFrameBudget(n)
-	return BitZone
-end
-
-function BitZone:SetPrecision(n: number): BitZone
-	assert(n >= 0, '[BitZone] Precision must be non-negative')
-
-	Scheduler.SetPrecision(n)
-	return BitZone
-end
-
-function BitZone:DisableSafetyMode(): BitZone
-	Scheduler.DisableSafetyMode()
-	return BitZone
-end
 
 function BitZone.newZone(cframe: CFrame, size: Vector3, shape: Types.ShapeType, associatedPart: BasePart?): Zone
 	return Zone.new(cframe, size, shape, associatedPart)
@@ -64,60 +44,27 @@ function BitZone.newGroup(priority: number?): Group
 	return Group.new(priority)
 end
 
-function BitZone:CanItemBeTracked(item: any): boolean
-	if typeof(item) == 'Instance' then
-		if
-			item:IsA('BasePart')
-			or item:IsA('Attachment')
-			or item:IsA('Bone')
-			or item:IsA('Camera')
-			or item:IsA('Model')
-		then
-			return true
-		end
-	elseif typeof(item) == 'table' then
-		if item.Position or item.CFrame or item.WorldPosition or item.GetPivot then
-			return true
-		end
-	end
-	return false
+function BitZone.newCollection(config: CollectionConfig?)
+	return Collection.new(config)
 end
 
-function BitZone:IsItemTracked(item: Item): boolean
-	local data = State.items[item]
-	return data ~= nil
+-- TODO
+function BitZone.playersCollection(config: CollectionConfig?): Collection
+	return
 end
 
-function BitZone:GetGroupsForItem(item: Item): { Group }
-	local data = items[item]
-	if not data then
-		return {}
-	end
+-- TODO
+function BitZone.localPlayerCollection(config: CollectionConfig?): Collection
+	assert(IS_CLIENT, '[BitZone] TrackLocalPlayer can only be called on the Client.')
 
-	local results = {}
-	for gUID, _ in pairs(data.memberOfGroups) do
-		local group = groupUIDToGroupObj[gUID]
-		if group then
-			table.insert(results, group)
-		end
-	end
-	return results
+	return
 end
 
-function BitZone:GetGroupsAtItem(item: Item): { Group }
-	local data = items[item]
-	if not data then
-		return {}
-	end
+function BitZone:SetFrameBudget(n: number): BitZone
+	assert(n > 0, '[BitZone] FrameBudget must be greater than 0')
 
-	local results = {}
-	for gUID, _ in pairs(data.activeGroupMemberships) do
-		local group = groupUIDToGroupObj[gUID]
-		if group then
-			table.insert(results, group)
-		end
-	end
-	return results
+	Scheduler.SetFrameBudget(n)
+	return BitZone
 end
 
 function BitZone:GetGroupsAtPoint(position: Vector3): { Group }
@@ -145,24 +92,51 @@ function BitZone:GetGroupsAtPoint(position: Vector3): { Group }
 	return results
 end
 
-function BitZone:UntrackItemFromAll(item: Types.Item): BitZone
-	local data = State.items[item]
-	if not data then
-		return BitZone
-	end
+function BitZone:GetCollectionOfItem(item: Item): Collection?
+	return State.itemToCollection[item]
+end
 
-	local groupsToUntrack = {}
-	for groupUID, _ in data.memberOfGroups do
-		table.insert(groupsToUntrack, groupUID)
-	end
+-- TODO
+function BitZone:GetZones(): { Zone }
+	return {}
+end
 
-	for _, uid in groupsToUntrack do
-		local group = State.groupUIDToGroupObj[uid]
-		if group then
-			group:UntrackItem(item)
+-- TODO
+function BitZone:GetGroups(): { Group }
+	return {}
+end
+
+-- TODO
+function BitZone:GetCollections(): { Collection }
+	return {}
+end
+
+-- TODO
+function BitZone:GetItems(): { Item }
+	return {}
+end
+
+function BitZone:IsItemValidType(item: any): boolean
+	if typeof(item) == 'Instance' then
+		if
+			item:IsA('BasePart')
+			or item:IsA('Attachment')
+			or item:IsA('Bone')
+			or item:IsA('Camera')
+			or item:IsA('Model')
+		then
+			return true
+		end
+	elseif typeof(item) == 'table' then
+		if item.Position or item.CFrame or item.WorldPosition or item.GetPivot then
+			return true
 		end
 	end
-	return BitZone
+	return false
+end
+
+function BitZone:IsItemInAnyCollection(item: Item): boolean
+	return State.itemToCollection[item] ~= nil
 end
 
 return BitZone

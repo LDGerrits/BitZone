@@ -5,12 +5,10 @@ local RunService = game:GetService('RunService')
 
 local Geometry = require(script.Parent.Geometry)
 local LinearBVH = require(script.Parent.LinearBVH)
-local Types = require(script.Parent.Types)
 local State = require(script.Parent.State)
 local Config = require(script.Parent.Config)
+local Types = require(script.Parent.Types)
 
-local itemList = State.itemList
-local items = State.items
 local objects = State.objects
 local zoneBoundGroups = State.zoneBoundGroups
 local groupPriorityMap = State.groupPriorityMap
@@ -20,32 +18,27 @@ local groupTrackingItems = State.groupTrackingItems
 local groupExitedCallbacks = State.groupExitedCallbacks
 local zoneIndexToZoneObj = State.zoneIndexToZoneObj
 
-local lastProcessedIndex = 1
 local ctx_pos: Vector3
-local ctx_data: Types.ItemData
+local ctx_collectionID: number
 local ctx_cCount: number = 0
 local ctx_highestWin: number
 local ctx_candidatePriority: { [number]: number } = table.create(16)
 local ctx_candidateIndex: { [number]: number } = table.create(16)
 local ctx_candidateList: { [number]: number } = table.create(16)
 
-local safetyMode = Config.Scheduler.SafetyMode
 local frameBudget = Config.Scheduler.FrameBudget
-local updateRate = Config.Scheduler.UpdateRate
-local precision = Config.Scheduler.Precision
-local precisionSq = precision * precision
 
 local STRAT_POS = Config.Strategy.POS
 local STRAT_PRIM = Config.Strategy.PRIM
 local STRAT_WORLD = Config.Strategy.WORLD
 local STRAT_CFRAME = Config.Strategy.CFRAME
 
-local function fireCallback(callbacks, item, zone, customData)
+local function fireCallback(callbacks, item, zone, customData, safeMode)
 	if not callbacks then
 		return
 	end
 
-	if safetyMode then
+	if safeMode then
 		for _, cb in callbacks do
 			task.spawn(cb, item, zone, customData)
 		end
@@ -57,40 +50,42 @@ local function fireCallback(callbacks, item, zone, customData)
 end
 
 local function queryCallback(zoneId: number)
+	if not Geometry.IsPointInShape(ctx_pos, objects[zoneId]) then
+		return
+	end
+
 	local groups = zoneBoundGroups[zoneId]
 	if not groups then
 		return
 	end
 
-	local memberOfGroups = ctx_data.memberOfGroups
+	local linkedGroups = State.collectionToGroups[ctx_collectionID]
+	if not linkedGroups then
+		return
+	end
 
-	local isMemberOfAny = false
+	local isRelevant = false
 	for _, gUID in groups do
-		if memberOfGroups[gUID] then
+		-- Is this group even interested in this collection?
+		if linkedGroups[gUID] then
+			-- Do we already have a better candidate?
 			if not ctx_candidatePriority[gUID] then
-				isMemberOfAny = true
+				isRelevant = true
 				break
 			end
 		end
 	end
-
-	if not isMemberOfAny then
-		return
-	end
-
-	if not Geometry.IsPointInShape(ctx_pos, objects[zoneId]) then
+	if not isRelevant then
 		return
 	end
 
 	for _, gUID in groups do
-		if memberOfGroups[gUID] then
+		if linkedGroups[gUID] then
 			local pri = groupPriorityMap[gUID] or 0
-
 			ctx_cCount += 1
 			ctx_candidateList[ctx_cCount] = gUID
 			ctx_candidateIndex[gUID] = zoneId
 			ctx_candidatePriority[gUID] = pri
-
 			if pri > ctx_highestWin then
 				ctx_highestWin = pri
 			end
@@ -113,140 +108,154 @@ RunService.Heartbeat:Connect(function(dt: number)
 
 	debug.profilebegin('QuickBounds_Step')
 	local start = os.clock()
-	local processed = 0
 	local forceRefresh = State.isDirty
 	State.isDirty = false
 
-	local totalItems = #itemList
-	if totalItems == 0 then
-		return
-	end
-
-	local workQuota = math.ceil(totalItems * updateRate * dt)
-	if workQuota < 1 then
-		workQuota = 1
-	end
-	if workQuota > totalItems then
-		workQuota = totalItems
-	end
-
-	if lastProcessedIndex > totalItems then
-		lastProcessedIndex = 1
-	end
-
-	while processed < workQuota do
-		local item = itemList[lastProcessedIndex]
-		local data = items[item]
-
-		local pos
-		local strategy = data.strategy
-
-		if strategy == STRAT_POS then
-			pos = (item :: any).Position
-		elseif strategy == STRAT_WORLD then
-			pos = (item :: any).WorldPosition
-		elseif strategy == STRAT_PRIM then
-			pos = (item :: any).PrimaryPart.Position
-		elseif strategy == STRAT_CFRAME then
-			pos = (item :: any).CFrame.Position
-		else
-			pos = (item :: any):GetPivot().Position
+	-- Each collection is processed one-by-one
+	for _, col in pairs(State.collections) do
+		local list = col.Items
+		local totalItems = #list
+		if totalItems == 0 then
+			continue
 		end
 
-		local shouldCheck = forceRefresh or data.isDirty
-		if not shouldCheck then
-			local lastPos = data.lastPosition
-			local dx = pos.X - lastPos.X
-			local dy = pos.Y - lastPos.Y
-			local dz = pos.Z - lastPos.Z
-			local d2 = (dx * dx) + (dy * dy) + (dz * dz)
-			if d2 >= precisionSq then
-				shouldCheck = true
+		local settings = col.Settings
+		local rate = settings.UpdateRate or 20
+		local precSq = settings.PrecisionSq or 0.01
+		local safeMode = settings.SafetyMode
+
+		local workQuota = math.ceil(totalItems * rate * dt)
+		if workQuota < 1 then
+			workQuota = 1
+		end
+		if workQuota > totalItems then
+			workQuota = totalItems
+		end
+
+		local processed = 0
+		local idx = col.LastProcessedIndex
+		if idx > totalItems then
+			idx = 1
+		end
+
+		ctx_collectionID = col.ID
+
+		while processed < workQuota do
+			local item = list[idx]
+			local d = col.ItemData[item] :: Types.ItemData?
+
+			-- Race condition guard
+			if not d then
+				idx += 1
+				if idx > totalItems then
+					idx = 1
+				end
+				processed += 1
+				continue
 			end
-		end
 
-		if shouldCheck then
-			data.lastPosition = pos
-			data.isDirty = false
+			-- Strategy
+			local pos
+			local strategy = d.strategy
+			if strategy == STRAT_POS then
+				pos = (item :: BasePart).Position
+			elseif strategy == STRAT_WORLD then
+				pos = (item :: Attachment).WorldPosition
+			elseif strategy == STRAT_CFRAME then
+				pos = (item :: BasePart).CFrame.Position
+			elseif strategy == STRAT_PRIM and (item :: Model).PrimaryPart then
+				pos = (item.PrimaryPart :: BasePart).Position
+			else
+				pos = (item :: any):GetPivot().Position
+			end
 
-			-- Query spatial map
-			ctx_pos = pos
-			ctx_data = data
-			ctx_cCount = 0
-			ctx_highestWin = -math.huge
+			-- Threshold
+			local shouldCheck = forceRefresh or d.isDirty
+			if not shouldCheck then
+				local lp = d.lastPosition
+				local dx, dy, dz = pos.X - lp.X, pos.Y - lp.Y, pos.Z - lp.Z
+				if (dx * dx + dy * dy + dz * dz) >= precSq then
+					shouldCheck = true
+				end
+			end
 
-			LinearBVH.QueryPoint(State.rootNode, pos, queryCallback)
+			if shouldCheck then
+				d.lastPosition = pos
+				d.isDirty = false
 
-			local current = data.activeGroupMemberships
+				ctx_pos = pos
+				ctx_cCount = 0
+				ctx_highestWin = -math.huge
 
-			-- Check exits
-			for gUID, oldZoneIdx in current do
-				local newPri = ctx_candidatePriority[gUID]
-				if not newPri or newPri < ctx_highestWin then
-					current[gUID] = nil
+				LinearBVH.QueryPoint(State.rootNode, pos, queryCallback)
 
-					if groupTrackingItems[gUID] then
-						groupTrackingItems[gUID][item] = nil
+				local current = d.activeGroupMemberships
+
+				-- Exits
+				for gUID, oldZoneIdx in pairs(current) do
+					local newPri = ctx_candidatePriority[gUID]
+					if not newPri or newPri < ctx_highestWin then
+						current[gUID] = nil
+						if groupTrackingItems[gUID] then
+							groupTrackingItems[gUID][item] = nil
+						end
+
+						local cbs = groupExitedCallbacks[gUID]
+						if cbs then
+							local z = zoneIndexToZoneObj[oldZoneIdx]
+							local cd = itemCustomData[item] and itemCustomData[item][gUID]
+							fireCallback(cbs, item, z, cd, safeMode)
+						end
 					end
+				end
 
-					local zone = zoneIndexToZoneObj[oldZoneIdx]
-					local cd = itemCustomData[item] and itemCustomData[item][gUID]
-					fireCallback(groupExitedCallbacks[gUID], item, zone, cd)
+				-- Entries
+				for i = 1, ctx_cCount do
+					local gUID = ctx_candidateList[i]
+					local pri = ctx_candidatePriority[gUID]
+					if pri >= ctx_highestWin and not current[gUID] then
+						local newZoneIdx = ctx_candidateIndex[gUID]
+						current[gUID] = newZoneIdx
+						groupTrackingItems[gUID][item] = true
+						local cbs = groupEnteredCallbacks[gUID]
+						if cbs then
+							local z = zoneIndexToZoneObj[newZoneIdx]
+							local cd = itemCustomData[item] and itemCustomData[item][gUID]
+							fireCallback(cbs, item, z, cd, safeMode)
+						end
+					end
+					ctx_candidatePriority[gUID] = nil
+					ctx_candidateIndex[gUID] = nil
+					ctx_candidateList[i] = nil
 				end
 			end
 
-			-- Check entries
-			for i = 1, ctx_cCount do
-				local gUID = ctx_candidateList[i]
-				local pri = ctx_candidatePriority[gUID]
+			idx += 1
+			if idx > totalItems then
+				idx = 1
+			end
+			processed += 1
 
-				if pri >= ctx_highestWin and not current[gUID] then
-					local newZoneIdx = ctx_candidateIndex[gUID]
-					current[gUID] = newZoneIdx
-
-					groupTrackingItems[gUID][item] = true
-
-					local zone = zoneIndexToZoneObj[newZoneIdx]
-					local cd = itemCustomData[item] and itemCustomData[item][gUID]
-					fireCallback(groupEnteredCallbacks[gUID], item, zone, cd)
-				end
-
-				ctx_candidatePriority[gUID] = nil
-				ctx_candidateIndex[gUID] = nil
-				ctx_candidateList[i] = nil
+			-- Global budget check
+			if processed % 42 == 0 and (os.clock() - start) > frameBudget then
+				break
 			end
 		end
 
-		lastProcessedIndex += 1
-		if lastProcessedIndex > totalItems then
-			lastProcessedIndex = 1
-		end
+		col.LastProcessedIndex = idx
 
-		processed += 1
-
-		if processed % 32 == 0 and (os.clock() - start) > frameBudget then
+		if (os.clock() - start) > frameBudget then
 			break
 		end
 	end
+
 	debug.profileend()
 end)
 
 local Scheduler = {}
 
-function Scheduler.SetUpdateRate(n: number)
-	updateRate = n
-end
-
 function Scheduler.SetFrameBudget(n: number)
 	frameBudget = n
-end
-
-function Scheduler.SetPrecision(n: number)
-	precisionSq = n * n
-end
-
-function Scheduler.DisableSafetyMode()
-	safetyMode = false
 end
 
 return Scheduler
