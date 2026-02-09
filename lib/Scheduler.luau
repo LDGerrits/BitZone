@@ -9,14 +9,14 @@ local State = require(script.Parent.State)
 local Config = require(script.Parent.Config)
 local Types = require(script.Parent.Types)
 
-local objects = State.Objects
-local zoneBoundObservers = State.ZoneBoundObservers
+local objects = State.objects
+local zoneBoundObservers = State.zoneBoundObservers
 local observerPriorityMap = State.ObserverPriorityMap
-local entityCustomData = State.EntityCustomData
-local observerEnteredCallbacks = State.ObserverEnteredCallbacks
-local observerTrackingEntities = State.ObserverTrackingEntities
-local observerExitedCallbacks = State.ObserverExitedCallbacks
-local zoneIdToZoneObj = State.ZoneIdToZoneObj
+local entityCustomData = State.entityCustomData
+local observerEnteredCallbacks = State.observerEnteredCallbacks
+local observerTrackingEntities = State.observerTrackingEntities
+local observerExitedCallbacks = State.observerExitedCallbacks
+local zoneIdToZoneObj = State.zoneIdToZoneObj
 
 local ctx_pos: Vector3
 local ctx_groupId: number
@@ -50,7 +50,7 @@ local function fireCallback(callbacks, entity, zone, customData, safeMode)
 end
 
 local function queryCallback(zoneId: number)
-	if not Geometry.IsPointInShape(ctx_pos, objects[zoneId]) then
+	if not Geometry.isPointInShape(ctx_pos, objects[zoneId]) then
 		return
 	end
 
@@ -59,7 +59,7 @@ local function queryCallback(zoneId: number)
 		return
 	end
 
-	local linkedObservers = State.GroupToObservers[ctx_groupId]
+	local linkedObservers = State.groupToObservers[ctx_groupId]
 	if not linkedObservers then
 		return
 	end
@@ -92,25 +92,25 @@ local function queryCallback(zoneId: number)
 end
 
 RunService.Heartbeat:Connect(function(dt: number)
-	if State.PendingRebuild then
+	if State.pendingRebuild then
 		debug.profilebegin('QuickBounds_Build')
-		State.RootNode = LinearBVH.Build(objects)
-		State.PendingRebuild = false
+		State.rootNode = LinearBVH.build(objects)
+		State.pendingRebuild = false
 		debug.profileend()
-		State.IsDirty = true
+		State.isDirty = true
 	end
 
-	if not State.RootNode then
+	if not State.rootNode then
 		return
 	end
 
 	debug.profilebegin('QuickBounds_Step')
 	local start = os.clock()
-	local forceRefresh = State.IsDirty
-	State.IsDirty = false
+	local forceRefresh = State.isDirty
+	State.isDirty = false
 
 	-- Each group is processed one-by-one
-	for _, group in pairs(State.Groups) do
+	for _, group in pairs(State.groups) do
 		local list = group._entities
 		local totalEntities = #list
 		if totalEntities == 0 then
@@ -168,7 +168,7 @@ RunService.Heartbeat:Connect(function(dt: number)
 			end
 
 			-- Threshold
-			local shouldCheck = forceRefresh or d.IsDirty
+			local shouldCheck = forceRefresh or d.isDirty
 			if not shouldCheck then
 				local lp = d.LastPosition
 				local dx, dy, dz = pos.X - lp.X, pos.Y - lp.Y, pos.Z - lp.Z
@@ -179,13 +179,13 @@ RunService.Heartbeat:Connect(function(dt: number)
 
 			if shouldCheck then
 				d.LastPosition = pos
-				d.IsDirty = false
+				d.isDirty = false
 
 				ctx_pos = pos
 				ctx_cCount = 0
 				ctx_highestWin = -math.huge
 
-				LinearBVH.QueryPoint(State.RootNode, pos, queryCallback)
+				LinearBVH.queryPoint(State.rootNode, pos, queryCallback)
 
 				local current = d.ActiveObserverMemberships
 

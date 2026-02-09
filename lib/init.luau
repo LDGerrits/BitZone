@@ -11,9 +11,9 @@ local Zone = require(script.Zone)
 local Observer = require(script.Observer)
 local Scheduler = require(script.Scheduler)
 
-local objects = State.Objects
-local zoneBoundObservers = State.ZoneBoundObservers
-local observerIdToObserverObj = State.ObserverIdToObserverObj
+local objects = State.objects
+local zoneBoundObservers = State.zoneBoundObservers
+local observerIdToObserverObj = State.observerIdToObserverObj
 
 local IS_CLIENT = RunService:IsClient()
 
@@ -82,9 +82,9 @@ function BitZone:getObserversAtPoint(position: Vector3): { Observer }
 	local results = {}
 	local foundIds = {}
 
-	if State.RootNode then
-		LinearBVH.QueryPoint(State.RootNode, position, function(zoneId)
-			if Geometry.IsPointInShape(position, objects[zoneId]) then
+	if State.rootNode then
+		LinearBVH.queryPoint(State.rootNode, position, function(zoneId)
+			if Geometry.isPointInShape(position, objects[zoneId]) then
 				local observers = zoneBoundObservers[zoneId]
 				if observers then
 					for _, id in observers do
@@ -104,16 +104,16 @@ function BitZone:getObserversAtPoint(position: Vector3): { Observer }
 end
 
 function BitZone:getGroupOfEntity(entity: Types.Entity): Types.Group?
-	local groupId = State.EntityToGroup[entity]
+	local groupId = State.entityToGroup[entity]
 	if groupId then
-		return State.Groups[groupId]
+		return State.groups[groupId]
 	end
 	return nil
 end
 
 function BitZone:getZones(): { Types.Zone }
 	local result = {}
-	for _, zone in pairs(State.ZoneIdToZoneObj) do
+	for _, zone in pairs(State.zoneIdToZoneObj) do
 		table.insert(result, zone)
 	end
 	return result
@@ -121,7 +121,7 @@ end
 
 function BitZone:getObservers(): { Types.Observer }
 	local result = {}
-	for _, observer in pairs(State.ObserverIdToObserverObj) do
+	for _, observer in pairs(State.observerIdToObserverObj) do
 		table.insert(result, observer)
 	end
 	return result
@@ -129,7 +129,7 @@ end
 
 function BitZone:getGroups(): { Types.Group }
 	local result = {}
-	for _, group in pairs(State.Groups) do
+	for _, group in pairs(State.groups) do
 		table.insert(result, group)
 	end
 	return result
@@ -137,7 +137,7 @@ end
 
 function BitZone:getEntities(): { Types.Entity }
 	local result = {}
-	for _, group in pairs(State.Groups) do
+	for _, group in pairs(State.groups) do
 		local count = #group._entities
 		if count > 0 then
 			local currentSize = #result
@@ -167,7 +167,7 @@ function BitZone:isEntityValidType(entity: any): boolean
 end
 
 function BitZone:isEntityInAnyGroup(entity: Entity): boolean
-	return State.EntityToGroup[entity] ~= nil
+	return State.entityToGroup[entity] ~= nil
 end
 
 return BitZone

@@ -16,41 +16,41 @@ Observer.__index = Observer
 function Observer.new(priority: number?): Types.Observer
 	local observer = (
 		setmetatable({
-			Id = State.NextObserverId,
+			Id = State.nextObserverId,
 			_mainConnections = {},
 			_playerTrackers = {},
 		}, Observer) :: any
 	) :: Types.Observer
 
 	State.ObserverPriorityMap[observer.Id] = priority or 0
-	State.ObserverEnteredCallbacks[observer.Id] = {}
-	State.ObserverExitedCallbacks[observer.Id] = {}
-	State.ObserverTrackingEntities[observer.Id] = {}
-	State.ObserverIdToObserverObj[observer.Id] = observer
+	State.observerEnteredCallbacks[observer.Id] = {}
+	State.observerExitedCallbacks[observer.Id] = {}
+	State.observerTrackingEntities[observer.Id] = {}
+	State.observerIdToObserverObj[observer.Id] = observer
 
-	State.NextObserverId += 1
+	State.nextObserverId += 1
 	return observer
 end
 
 function Observer:setPriority(p: number): Types.Observer
 	State.ObserverPriorityMap[self.Id] = p
-	State.IsDirty = true
+	State.isDirty = true
 	return self
 end
 
 function Observer:track(group: Types.Group): Types.Observer
 	local groupId = group.Id
-	if not State.GroupToObservers[groupId] then
-		State.GroupToObservers[groupId] = {}
+	if not State.groupToObservers[groupId] then
+		State.groupToObservers[groupId] = {}
 	end
-	State.GroupToObservers[groupId][self.Id] = true
+	State.groupToObservers[groupId][self.Id] = true
 	return self
 end
 
 function Observer:untrack(group: Types.Group): Types.Observer
 	local groupId = group.Id
-	if State.GroupToObservers[groupId] then
-		State.GroupToObservers[groupId][self.Id] = nil
+	if State.groupToObservers[groupId] then
+		State.groupToObservers[groupId][self.Id] = nil
 	end
 
 	local safetyMode = group._config.SafetyMode
@@ -59,12 +59,12 @@ function Observer:untrack(group: Types.Group): Types.Observer
 		local oldZoneId = data and data.ActiveObserverMemberships[self.Id]
 		if oldZoneId then
 			data.ActiveObserverMemberships[self.Id] = nil
-			State.ObserverTrackingEntities[self.Id][entity] = nil
+			State.observerTrackingEntities[self.Id][entity] = nil
 
-			local z = State.ZoneIdToZoneObj[oldZoneId]
-			local cbs = State.ObserverExitedCallbacks[self.Id]
+			local z = State.zoneIdToZoneObj[oldZoneId]
+			local cbs = State.observerExitedCallbacks[self.Id]
 			if cbs then
-				local cd = State.EntityCustomData[entity] and State.EntityCustomData[entity][self.Id]
+				local cd = State.entityCustomData[entity] and State.entityCustomData[entity][self.Id]
 				for _, fn in cbs do
 					if safetyMode then
 						task.spawn(fn, entity, z, cd)
@@ -102,12 +102,12 @@ function Observer:isLocalPlayerInside(): boolean
 end
 
 function Observer:isEntityInside(entity: Types.Entity): boolean
-	local groupId = State.EntityToGroup[entity]
+	local groupId = State.entityToGroup[entity]
 	if not groupId then
 		return false
 	end
 
-	local group = State.Groups[groupId]
+	local group = State.groups[groupId]
 	local data = group._entityData[entity]
 	if not data then
 		return false
@@ -117,18 +117,18 @@ function Observer:isEntityInside(entity: Types.Entity): boolean
 end
 
 function Observer:isPointInside(position: Vector3): boolean
-	if not State.RootNode then
+	if not State.rootNode then
 		return false
 	end
 
 	local isInside = false
-	LinearBVH.QueryPoint(State.RootNode, position, function(zoneId)
+	LinearBVH.queryPoint(State.rootNode, position, function(zoneId)
 		if isInside then
 			return
 		end
-		local observers = State.ZoneBoundObservers[zoneId]
+		local observers = State.zoneBoundObservers[zoneId]
 		if observers and table.find(observers, self.Id) then
-			if Geometry.IsPointInShape(position, State.Objects[zoneId]) then
+			if Geometry.isPointInShape(position, State.objects[zoneId]) then
 				isInside = true
 			end
 		end
@@ -138,7 +138,7 @@ function Observer:isPointInside(position: Vector3): boolean
 end
 
 function Observer:getEntitiesInside(): { Types.Entity }
-	local entities = State.ObserverTrackingEntities[self.Id]
+	local entities = State.observerTrackingEntities[self.Id]
 	if not entities then
 		return {}
 	end
@@ -151,9 +151,9 @@ end
 
 function Observer:getEntities(): { Types.Entity }
 	local results = {}
-	for groupId, observers in pairs(State.GroupToObservers) do
+	for groupId, observers in pairs(State.groupToObservers) do
 		if observers[self.Id] then
-			local group = State.Groups[groupId]
+			local group = State.groups[groupId]
 			for _, entity in ipairs(group._entities) do
 				table.insert(results, entity)
 			end
@@ -164,9 +164,9 @@ end
 
 function Observer:getZones(): { Types.Zone }
 	local results = {}
-	for zoneId, boundList in pairs(State.ZoneBoundObservers) do
+	for zoneId, boundList in pairs(State.zoneBoundObservers) do
 		if table.find(boundList, self.Id) then
-			local zone = State.ZoneIdToZoneObj[zoneId]
+			local zone = State.zoneIdToZoneObj[zoneId]
 			if zone then
 				table.insert(results, zone)
 			end
@@ -178,9 +178,9 @@ end
 function Observer:getGroups(): { Types.Group }
 	local result = {}
 
-	for groupId, observersMap in pairs(State.GroupToObservers) do
+	for groupId, observersMap in pairs(State.groupToObservers) do
 		if observersMap[self.Id] then
-			local group = State.Groups[groupId]
+			local group = State.groups[groupId]
 			if group then
 				table.insert(result, group)
 			end
@@ -191,21 +191,21 @@ function Observer:getGroups(): { Types.Group }
 end
 
 function Observer:onEntered(callback): () -> ()
-	table.insert(State.ObserverEnteredCallbacks[self.Id], callback)
+	table.insert(State.observerEnteredCallbacks[self.Id], callback)
 	return function()
-		local i = table.find(State.ObserverEnteredCallbacks[self.Id], callback)
+		local i = table.find(State.observerEnteredCallbacks[self.Id], callback)
 		if i then
-			table.remove(State.ObserverEnteredCallbacks[self.Id], i)
+			table.remove(State.observerEnteredCallbacks[self.Id], i)
 		end
 	end
 end
 
 function Observer:onExited(callback): () -> ()
-	table.insert(State.ObserverExitedCallbacks[self.Id], callback)
+	table.insert(State.observerExitedCallbacks[self.Id], callback)
 	return function()
-		local i = table.find(State.ObserverExitedCallbacks[self.Id], callback)
+		local i = table.find(State.observerExitedCallbacks[self.Id], callback)
 		if i then
-			table.remove(State.ObserverExitedCallbacks[self.Id], i)
+			table.remove(State.observerExitedCallbacks[self.Id], i)
 		end
 	end
 end
@@ -246,11 +246,11 @@ end
 
 function Observer:destroy(): ()
 	local id = self.Id
-	for _, observers in pairs(State.GroupToObservers) do
+	for _, observers in pairs(State.groupToObservers) do
 		observers[id] = nil
 	end
 
-	for _, boundList in pairs(State.ZoneBoundObservers) do
+	for _, boundList in pairs(State.zoneBoundObservers) do
 		local idx = table.find(boundList, id)
 		while idx do
 			table.remove(boundList, idx)
@@ -259,11 +259,11 @@ function Observer:destroy(): ()
 	end
 
 	State.ObserverPriorityMap[id] = nil
-	State.ObserverEnteredCallbacks[id] = nil
-	State.ObserverExitedCallbacks[id] = nil
-	State.ObserverTrackingEntities[id] = nil
-	State.ObserverIdToObserverObj[id] = nil
-	State.IsDirty = true
+	State.observerEnteredCallbacks[id] = nil
+	State.observerExitedCallbacks[id] = nil
+	State.observerTrackingEntities[id] = nil
+	State.observerIdToObserverObj[id] = nil
+	State.isDirty = true
 	setmetatable(self :: any, nil)
 end
 

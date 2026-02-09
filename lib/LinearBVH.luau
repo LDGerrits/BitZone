@@ -66,7 +66,7 @@ local function createSubTree(
 
 		local left = createSubTree(list, boundsMin, boundsMax, beginIndex, mid - 1)
 		local right = createSubTree(list, boundsMin, boundsMax, mid, endIndex)
-		local min, max = Geometry.UnionBounds(left.Min, left.Max, right.Min, right.Max)
+		local min, max = Geometry.unionBounds(left.Min, left.Max, right.Min, right.Max)
 
 		return { Min = min, Max = max, Id = -1, Left = left, Right = right }
 	end
@@ -75,13 +75,13 @@ end
 local HUGE_VECTOR = Vector3.one * math.huge
 local NEGATIVE_HUGE_VECTOR = -HUGE_VECTOR
 
-function LinearBVH.Build(objects: { Types.BoundingVolume }): Types.Node?
+function LinearBVH.build(objects: { Types.BoundingVolume }): Types.Node?
 	table.clear(traversalStack)
 
 	local min = HUGE_VECTOR
 	local max = NEGATIVE_HUGE_VECTOR
 	for _, object in objects do
-		local bMin, bMax = Geometry.GetObjectBounds(object)
+		local bMin, bMax = Geometry.getObjectBounds(object)
 		min = vector.min(min, bMin)
 		max = vector.max(max, bMax)
 	end
@@ -98,13 +98,13 @@ function LinearBVH.Build(objects: { Types.BoundingVolume }): Types.Node?
 
 	local count = 0
 	for id, object in objects do
-		local bMin, bMax = Geometry.GetObjectBounds(object)
+		local bMin, bMax = Geometry.getObjectBounds(object)
 		objMin[id], objMax[id] = bMin, bMax
 
 		count += 1
 		listCache[count] = {
 			id = id,
-			mortonCode = Geometry.PositionToMortonCode(object.Position, sceneMin, sceneMax),
+			mortonCode = Geometry.positionToMortonCode(object.Position, sceneMin, sceneMax),
 		}
 	end
 
@@ -119,7 +119,7 @@ function LinearBVH.Build(objects: { Types.BoundingVolume }): Types.Node?
 	return nil
 end
 
-function LinearBVH.QueryPoint(root: Types.Node?, point: Vector3, callback: (id: number) -> ())
+function LinearBVH.queryPoint(root: Types.Node?, point: Vector3, callback: (id: number) -> ())
 	if not root then
 		return
 	end

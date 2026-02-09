@@ -25,31 +25,31 @@ function Zone.new(cframe: CFrame, size: Vector3, shape: Types.ShapeType, associa
 		object.RadiusSq = halfSize.Y * halfSize.Y
 	end
 
-	local id = State.NextZoneId
-	State.NextZoneId += 1
-	State.Objects[id] = object
-	State.PendingRebuild = true
+	local id = State.nextZoneId
+	State.nextZoneId += 1
+	State.objects[id] = object
+	State.pendingRebuild = true
 
 	local self = (setmetatable({ Id = id, Part = associatedPart }, Zone) :: any) :: Types.Zone
-	State.ZoneIdToZoneObj[id] = self
+	State.zoneIdToZoneObj[id] = self
 
 	return self
 end
 
 function Zone:bindToObservers(...): Types.Zone
-	local bound = State.ZoneBoundObservers[self.Id] or {}
-	State.ZoneBoundObservers[self.Id] = bound
+	local bound = State.zoneBoundObservers[self.Id] or {}
+	State.zoneBoundObservers[self.Id] = bound
 	for _, observer in { ... } do
 		if not table.find(bound, observer.Id) then
 			table.insert(bound, observer.Id)
 		end
 	end
-	State.IsDirty = true
+	State.isDirty = true
 	return self
 end
 
 function Zone:unbindFromObservers(...): Types.Zone
-	local bound = State.ZoneBoundObservers[self.Id]
+	local bound = State.zoneBoundObservers[self.Id]
 	if not bound then
 		return self
 	end
@@ -62,22 +62,22 @@ function Zone:unbindFromObservers(...): Types.Zone
 		end
 	end
 	if #bound == 0 then
-		State.ZoneBoundObservers[self.Id] = nil
+		State.zoneBoundObservers[self.Id] = nil
 	end
-	State.IsDirty = true
+	State.isDirty = true
 
 	return self
 end
 
 function Zone:getObservers(): { Types.Observer }
-	local bound = State.ZoneBoundObservers[self.Id]
+	local bound = State.zoneBoundObservers[self.Id]
 	if not bound then
 		return {}
 	end
 
 	local result = {}
 	for _, id in bound do
-		local observer = State.ObserverIdToObserverObj[id]
+		local observer = State.observerIdToObserverObj[id]
 		if observer then
 			table.insert(result, observer)
 		end
@@ -86,10 +86,10 @@ function Zone:getObservers(): { Types.Observer }
 end
 
 function Zone:destroy()
-	State.ZoneBoundObservers[self.Id] = nil
-	State.ZoneIdToZoneObj[self.Id] = nil
-	State.Objects[self.Id] = nil
-	State.PendingRebuild = true
+	State.zoneBoundObservers[self.Id] = nil
+	State.zoneIdToZoneObj[self.Id] = nil
+	State.objects[self.Id] = nil
+	State.pendingRebuild = true
 
 	setmetatable(self :: any, nil)
 end

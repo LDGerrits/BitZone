@@ -23,8 +23,8 @@ function Group.new(config: {
 	local n = config and config.Precision
 	assert(not n or n >= 0, '[BitZone] Precision must be non-negative')
 
-	local id = State.NextGroupId
-	State.NextGroupId += 1
+	local id = State.nextGroupId
+	State.nextGroupId += 1
 
 	local updateRate = hz or Config.Scheduler.UpdateRate
 	local precision = n or Config.Scheduler.Precision
@@ -48,8 +48,8 @@ function Group.new(config: {
 		}, Group) :: any
 	) :: Types.Group
 
-	State.Groups[id] = self
-	State.GroupToObservers[id] = {}
+	State.groups[id] = self
+	State.groupToObservers[id] = {}
 
 	return self
 end
@@ -97,12 +97,12 @@ function Group:setSafetyMode(enabled: boolean): Types.Group
 end
 
 function Group:add(entity: Types.Entity, customData: any?): Types.Group
-	local oldGroupId = State.EntityToGroup[entity]
+	local oldGroupId = State.entityToGroup[entity]
 	if oldGroupId then
 		if oldGroupId == self.Id then
 			return self
 		end
-		local oldGroup = State.Groups[oldGroupId]
+		local oldGroup = State.groups[oldGroupId]
 		if oldGroup then
 			oldGroup:remove(entity)
 		end
@@ -154,20 +154,20 @@ function Group:add(entity: Types.Entity, customData: any?): Types.Group
 	self._entityIndices[entity] = idx
 	self._entityData[entity] = data
 
-	State.EntityToGroup[entity] = self.Id
+	State.entityToGroup[entity] = self.Id
 
 	if customData then
-		if not State.EntityCustomData[entity] then
-			State.EntityCustomData[entity] = {}
+		if not State.entityCustomData[entity] then
+			State.entityCustomData[entity] = {}
 		end
-		State.EntityCustomData[entity] = customData
+		State.entityCustomData[entity] = customData
 	end
 
 	return self
 end
 
 function Group:remove(entity: Types.Entity): Types.Group
-	if State.EntityToGroup[entity] ~= self.Id then
+	if State.entityToGroup[entity] ~= self.Id then
 		return self
 	end
 
@@ -176,14 +176,14 @@ function Group:remove(entity: Types.Entity): Types.Group
 	-- Trigger exit
 	local safetyMode = self._config.SafetyMode
 	for gId, oldZoneId in pairs(data.ActiveObserverMemberships) do
-		if State.ObserverTrackingEntities[gId] then
-			State.ObserverTrackingEntities[gId][entity] = nil
+		if State.observerTrackingEntities[gId] then
+			State.observerTrackingEntities[gId][entity] = nil
 		end
 
-		local cbs = State.ObserverExitedCallbacks[gId]
+		local cbs = State.observerExitedCallbacks[gId]
 		if cbs then
-			local z = State.ZoneIdToZoneObj[oldZoneId]
-			local cd = State.EntityCustomData[entity] and State.EntityCustomData[entity][gId]
+			local z = State.zoneIdToZoneObj[oldZoneId]
+			local cd = State.entityCustomData[entity] and State.entityCustomData[entity][gId]
 			for _, fn in cbs do
 				if safetyMode then
 					task.spawn(fn, entity, z, cd)
@@ -210,8 +210,8 @@ function Group:remove(entity: Types.Entity): Types.Group
 	end
 
 	self._entityData[entity] = nil
-	State.EntityToGroup[entity] = nil
-	State.EntityCustomData[entity] = nil
+	State.entityToGroup[entity] = nil
+	State.entityCustomData[entity] = nil
 
 	return self
 end
@@ -224,11 +224,11 @@ end
 
 function Group:getObservers(): { Types.Observer }
 	local result = {}
-	local observersMap = State.GroupToObservers[self.Id]
+	local observersMap = State.groupToObservers[self.Id]
 
 	if observersMap then
 		for observerId, _ in pairs(observersMap) do
-			local observer = State.ObserverIdToObserverObj[observerId]
+			local observer = State.observerIdToObserverObj[observerId]
 			if observer then
 				table.insert(result, observer)
 			end
@@ -256,8 +256,8 @@ function Group:destroy(): ()
 		self:remove(self._entities[i])
 	end
 
-	State.GroupToObservers[self.Id] = nil
-	State.Groups[self.Id] = nil
+	State.groupToObservers[self.Id] = nil
+	State.groups[self.Id] = nil
 	setmetatable(self :: any, nil)
 end
 
