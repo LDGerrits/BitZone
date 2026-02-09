@@ -2,26 +2,26 @@
 local Players = game:GetService('Players')
 local RunService = game:GetService('RunService')
 
-local Collection = require(script.Collection)
+local Group = require(script.Group)
 local Geometry = require(script.Geometry)
 local LinearBVH = require(script.LinearBVH)
 local Types = require(script.Types)
 local State = require(script.State)
 local Zone = require(script.Zone)
-local Group = require(script.Group)
+local Observer = require(script.Observer)
 local Scheduler = require(script.Scheduler)
 
 local objects = State.Objects
-local zoneBoundGroups = State.ZoneBoundGroups
-local groupIdToGroupObj = State.GroupIdToGroupObj
+local zoneBoundObservers = State.ZoneBoundObservers
+local observerIdToObserverObj = State.ObserverIdToObserverObj
 
 local IS_CLIENT = RunService:IsClient()
 
 export type BitZone = Types.BitZone
 export type Zone = Types.Zone
+export type Observer = Types.Observer
 export type Group = Types.Group
-export type Collection = Types.Collection
-export type Item = Types.Item
+export type Entity = Types.Entity
 
 local BitZone = {}
 
@@ -39,33 +39,33 @@ function BitZone.newZoneFromPart(part: BasePart): Zone
 	return Zone.new(part.CFrame, part.Size, shape, part)
 end
 
-function BitZone.newGroup(priority: number?): Group
-	return Group.new(priority)
+function BitZone.newObserver(priority: number?): Observer
+	return Observer.new(priority)
 end
 
-function BitZone.newCollection(config: {
+function BitZone.newGroup(config: {
 	UpdateRate: number?,
 	Precision: number?,
 	SafetyMode: boolean?,
 }?)
-	return Collection.new(config)
+	return Group.new(config)
 end
 
 -- TODO
-function BitZone.playersCollection(config: {
+function BitZone.playersGroup(config: {
 	UpdateRate: number?,
 	Precision: number?,
 	SafetyMode: boolean?,
-}?): Collection
+}?): Group
 	return
 end
 
 -- TODO
-function BitZone.localPlayerCollection(config: {
+function BitZone.localPlayerGroup(config: {
 	UpdateRate: number?,
 	Precision: number?,
 	SafetyMode: boolean?,
-}?): Collection
+}?): Group
 	assert(IS_CLIENT, '[BitZone] TrackLocalPlayer can only be called on the Client.')
 
 	return
@@ -78,21 +78,21 @@ function BitZone:SetFrameBudget(n: number): BitZone
 	return BitZone
 end
 
-function BitZone:GetGroupsAtPoint(position: Vector3): { Group }
+function BitZone:GetObserversAtPoint(position: Vector3): { Observer }
 	local results = {}
 	local foundIds = {}
 
 	if State.RootNode then
 		LinearBVH.QueryPoint(State.RootNode, position, function(zoneId)
 			if Geometry.IsPointInShape(position, objects[zoneId]) then
-				local groups = zoneBoundGroups[zoneId]
-				if groups then
-					for _, id in groups do
+				local observers = zoneBoundObservers[zoneId]
+				if observers then
+					for _, id in observers do
 						if not foundIds[id] then
 							foundIds[id] = true
-							local group = groupIdToGroupObj[id]
-							if group then
-								table.insert(results, group)
+							local observer = observerIdToObserverObj[id]
+							if observer then
+								table.insert(results, observer)
 							end
 						end
 					end
@@ -103,10 +103,10 @@ function BitZone:GetGroupsAtPoint(position: Vector3): { Group }
 	return results
 end
 
-function BitZone:GetCollectionOfItem(item: Types.Item): Types.Collection?
-	local colId = State.ItemToCollection[item]
-	if colId then
-		return State.Collections[colId]
+function BitZone:GetGroupOfEntity(entity: Types.Entity): Types.Group?
+	local groupId = State.EntityToGroup[entity]
+	if groupId then
+		return State.Groups[groupId]
 	end
 	return nil
 end
@@ -119,55 +119,55 @@ function BitZone:GetZones(): { Types.Zone }
 	return result
 end
 
+function BitZone:GetObservers(): { Types.Observer }
+	local result = {}
+	for _, observer in pairs(State.ObserverIdToObserverObj) do
+		table.insert(result, observer)
+	end
+	return result
+end
+
 function BitZone:GetGroups(): { Types.Group }
 	local result = {}
-	for _, group in pairs(State.GroupIdToGroupObj) do
+	for _, group in pairs(State.Groups) do
 		table.insert(result, group)
 	end
 	return result
 end
 
-function BitZone:GetCollections(): { Types.Collection }
+function BitZone:GetEntities(): { Types.Entity }
 	local result = {}
-	for _, collection in pairs(State.Collections) do
-		table.insert(result, collection)
-	end
-	return result
-end
-
-function BitZone:GetItems(): { Types.Item }
-	local result = {}
-	for _, collection in pairs(State.Collections) do
-		local count = #collection._items
+	for _, group in pairs(State.Groups) do
+		local count = #group._entities
 		if count > 0 then
 			local currentSize = #result
-			table.move(collection._items, 1, count, currentSize + 1, result)
+			table.move(group._entities, 1, count, currentSize + 1, result)
 		end
 	end
 	return result
 end
 
-function BitZone:IsItemValidType(item: any): boolean
-	if typeof(item) == 'Instance' then
+function BitZone:IsEntityValidType(entity: any): boolean
+	if typeof(entity) == 'Instance' then
 		if
-			item:IsA('BasePart')
-			or item:IsA('Attachment')
-			or item:IsA('Bone')
-			or item:IsA('Camera')
-			or item:IsA('Model')
+			entity:IsA('BasePart')
+			or entity:IsA('Attachment')
+			or entity:IsA('Bone')
+			or entity:IsA('Camera')
+			or entity:IsA('Model')
 		then
 			return true
 		end
-	elseif typeof(item) == 'table' then
-		if item.Position or item.CFrame or item.WorldPosition or item.GetPivot then
+	elseif typeof(entity) == 'table' then
+		if entity.Position or entity.CFrame or entity.WorldPosition or entity.GetPivot then
 			return true
 		end
 	end
 	return false
 end
 
-function BitZone:IsItemInAnyCollection(item: Item): boolean
-	return State.ItemToCollection[item] ~= nil
+function BitZone:IsEntityInAnyGroup(entity: Entity): boolean
+	return State.EntityToGroup[entity] ~= nil
 end
 
 return BitZone

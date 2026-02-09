@@ -10,16 +10,16 @@ local Config = require(script.Parent.Config)
 local Types = require(script.Parent.Types)
 
 local objects = State.Objects
-local zoneBoundGroups = State.ZoneBoundGroups
-local groupPriorityMap = State.GroupPriorityMap
-local itemCustomData = State.ItemCustomData
-local groupEnteredCallbacks = State.GroupEnteredCallbacks
-local groupTrackingItems = State.GroupTrackingItems
-local groupExitedCallbacks = State.GroupExitedCallbacks
+local zoneBoundObservers = State.ZoneBoundObservers
+local observerPriorityMap = State.ObserverPriorityMap
+local entityCustomData = State.EntityCustomData
+local observerEnteredCallbacks = State.ObserverEnteredCallbacks
+local observerTrackingEntities = State.ObserverTrackingEntities
+local observerExitedCallbacks = State.ObserverExitedCallbacks
 local zoneIdToZoneObj = State.ZoneIdToZoneObj
 
 local ctx_pos: Vector3
-local ctx_collectionId: number
+local ctx_groupId: number
 local ctx_cCount: number = 0
 local ctx_highestWin: number
 local ctx_candidatePriority: { [number]: number } = table.create(16)
@@ -33,18 +33,18 @@ local STRAT_PRIM = Config.Strategy.PRIM
 local STRAT_WORLD = Config.Strategy.WORLD
 local STRAT_CFRAME = Config.Strategy.CFRAME
 
-local function fireCallback(callbacks, item, zone, customData, safeMode)
+local function fireCallback(callbacks, entity, zone, customData, safeMode)
 	if not callbacks then
 		return
 	end
 
 	if safeMode then
 		for _, cb in callbacks do
-			task.spawn(cb, item, zone, customData)
+			task.spawn(cb, entity, zone, customData)
 		end
 	else
 		for _, cb in callbacks do
-			cb(item, zone, customData)
+			cb(entity, zone, customData)
 		end
 	end
 end
@@ -54,21 +54,19 @@ local function queryCallback(zoneId: number)
 		return
 	end
 
-	local groups = zoneBoundGroups[zoneId]
-	if not groups then
+	local observers = zoneBoundObservers[zoneId]
+	if not observers then
 		return
 	end
 
-	local linkedGroups = State.CollectionToGroups[ctx_collectionId]
-	if not linkedGroups then
+	local linkedObservers = State.GroupToObservers[ctx_groupId]
+	if not linkedObservers then
 		return
 	end
 
 	local isRelevant = false
-	for _, gId in groups do
-		-- Is this group even interested in this collection?
-		if linkedGroups[gId] then
-			-- Do we already have a better candidate?
+	for _, gId in observers do
+		if linkedObservers[gId] then
 			if not ctx_candidatePriority[gId] then
 				isRelevant = true
 				break
@@ -79,9 +77,9 @@ local function queryCallback(zoneId: number)
 		return
 	end
 
-	for _, gId in groups do
-		if linkedGroups[gId] then
-			local pri = groupPriorityMap[gId] or 0
+	for _, gId in observers do
+		if linkedObservers[gId] then
+			local pri = observerPriorityMap[gId] or 0
 			ctx_cCount += 1
 			ctx_candidateList[ctx_cCount] = gId
 			ctx_candidateIndex[gId] = zoneId
@@ -111,43 +109,43 @@ RunService.Heartbeat:Connect(function(dt: number)
 	local forceRefresh = State.IsDirty
 	State.IsDirty = false
 
-	-- Each collection is processed one-by-one
-	for _, col in pairs(State.Collections) do
-		local list = col._items
-		local totalItems = #list
-		if totalItems == 0 then
+	-- Each group is processed one-by-one
+	for _, group in pairs(State.Groups) do
+		local list = group._entities
+		local totalEntities = #list
+		if totalEntities == 0 then
 			continue
 		end
 
-		local config = col._config
+		local config = group._config
 		local rate = config.UpdateRate or 20
 		local precSq = config.PrecisionSq or 0.01
 		local safeMode = config.SafetyMode
 
-		local workQuota = math.ceil(totalItems * rate * dt)
+		local workQuota = math.ceil(totalEntities * rate * dt)
 		if workQuota < 1 then
 			workQuota = 1
 		end
-		if workQuota > totalItems then
-			workQuota = totalItems
+		if workQuota > totalEntities then
+			workQuota = totalEntities
 		end
 
 		local processed = 0
-		local idx = col._lastProcessedIndex
-		if idx > totalItems then
+		local idx = group._lastProcessedIndex
+		if idx > totalEntities then
 			idx = 1
 		end
 
-		ctx_collectionId = col.Id
+		ctx_groupId = group.Id
 
 		while processed < workQuota do
-			local item = list[idx]
-			local d = col._itemData[item] :: Types._itemData?
+			local entity = list[idx]
+			local d = group._entityData[entity] :: Types.EntityData?
 
 			-- Race condition guard
 			if not d then
 				idx += 1
-				if idx > totalItems then
+				if idx > totalEntities then
 					idx = 1
 				end
 				processed += 1
@@ -156,23 +154,23 @@ RunService.Heartbeat:Connect(function(dt: number)
 
 			-- Strategy
 			local pos
-			local strategy = d.strategy
+			local strategy = d.Strategy
 			if strategy == STRAT_POS then
-				pos = (item :: BasePart).Position
+				pos = (entity :: BasePart).Position
 			elseif strategy == STRAT_WORLD then
-				pos = (item :: Attachment).WorldPosition
+				pos = (entity :: Attachment).WorldPosition
 			elseif strategy == STRAT_CFRAME then
-				pos = (item :: BasePart).CFrame.Position
-			elseif strategy == STRAT_PRIM and (item :: Model).PrimaryPart then
-				pos = ((item :: Model).PrimaryPart :: BasePart).Position
+				pos = (entity :: BasePart).CFrame.Position
+			elseif strategy == STRAT_PRIM and (entity :: Model).PrimaryPart then
+				pos = ((entity :: Model).PrimaryPart :: BasePart).Position
 			else
-				pos = (item :: any):GetPivot().Position
+				pos = (entity :: any):GetPivot().Position
 			end
 
 			-- Threshold
 			local shouldCheck = forceRefresh or d.IsDirty
 			if not shouldCheck then
-				local lp = d.lastPosition
+				local lp = d.LastPosition
 				local dx, dy, dz = pos.X - lp.X, pos.Y - lp.Y, pos.Z - lp.Z
 				if (dx * dx + dy * dy + dz * dz) >= precSq then
 					shouldCheck = true
@@ -180,7 +178,7 @@ RunService.Heartbeat:Connect(function(dt: number)
 			end
 
 			if shouldCheck then
-				d.lastPosition = pos
+				d.LastPosition = pos
 				d.IsDirty = false
 
 				ctx_pos = pos
@@ -189,22 +187,22 @@ RunService.Heartbeat:Connect(function(dt: number)
 
 				LinearBVH.QueryPoint(State.RootNode, pos, queryCallback)
 
-				local current = d.ActiveGroupMemberships
+				local current = d.ActiveObserverMemberships
 
 				-- Exits
 				for gId, oldZoneIdx in pairs(current) do
 					local newPri = ctx_candidatePriority[gId]
 					if not newPri or newPri < ctx_highestWin then
 						current[gId] = nil
-						if groupTrackingItems[gId] then
-							groupTrackingItems[gId][item] = nil
+						if observerTrackingEntities[gId] then
+							observerTrackingEntities[gId][entity] = nil
 						end
 
-						local cbs = groupExitedCallbacks[gId]
+						local cbs = observerExitedCallbacks[gId]
 						if cbs then
 							local z = zoneIdToZoneObj[oldZoneIdx]
-							local cd = itemCustomData[item] and itemCustomData[item][gId]
-							fireCallback(cbs, item, z, cd, safeMode)
+							local cd = entityCustomData[entity] and entityCustomData[entity][gId]
+							fireCallback(cbs, entity, z, cd, safeMode)
 						end
 					end
 				end
@@ -216,12 +214,12 @@ RunService.Heartbeat:Connect(function(dt: number)
 					if pri >= ctx_highestWin and not current[gId] then
 						local newZoneIdx = ctx_candidateIndex[gId]
 						current[gId] = newZoneIdx
-						groupTrackingItems[gId][item] = true
-						local cbs = groupEnteredCallbacks[gId]
+						observerTrackingEntities[gId][entity] = true
+						local cbs = observerEnteredCallbacks[gId]
 						if cbs then
 							local z = zoneIdToZoneObj[newZoneIdx]
-							local cd = itemCustomData[item] and itemCustomData[item][gId]
-							fireCallback(cbs, item, z, cd, safeMode)
+							local cd = entityCustomData[entity] and entityCustomData[entity][gId]
+							fireCallback(cbs, entity, z, cd, safeMode)
 						end
 					end
 					ctx_candidatePriority[gId] = nil
@@ -231,7 +229,7 @@ RunService.Heartbeat:Connect(function(dt: number)
 			end
 
 			idx += 1
-			if idx > totalItems then
+			if idx > totalEntities then
 				idx = 1
 			end
 			processed += 1
@@ -242,7 +240,7 @@ RunService.Heartbeat:Connect(function(dt: number)
 			end
 		end
 
-		col._lastProcessedIndex = idx
+		group._lastProcessedIndex = idx
 
 		if (os.clock() - start) > frameBudget then
 			break

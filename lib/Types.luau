@@ -29,43 +29,37 @@ export type BitZone = {
 	-- Factories
 	newZone: (cframe: CFrame, size: Vector3, shape: ShapeType, associatedPart: BasePart?) -> Zone,
 	newZoneFromPart: (part: BasePart) -> Zone,
-	newGroup: (priority: number?) -> Group,
-	newCollection: (
-		{
-			UpdateRate: number?,
-			Precision: number?,
-			SafetyMode: boolean?,
-		}?
-	) -> Collection,
-	playersCollection: (
-		{
-			UpdateRate: number?,
-			Precision: number?,
-			SafetyMode: boolean?,
-		}?
-	) -> Collection,
-	localPlayerCollection: (
-		{
-			UpdateRate: number?,
-			Precision: number?,
-			SafetyMode: boolean?,
-		}?
-	) -> Collection,
+	newObserver: (priority: number?) -> Observer,
+	newGroup: ({
+		UpdateRate: number?,
+		Precision: number?,
+		SafetyMode: boolean?,
+	}?) -> Group,
+	playersGroup: ({
+		UpdateRate: number?,
+		Precision: number?,
+		SafetyMode: boolean?,
+	}?) -> Group,
+	localPlayerGroup: ({
+		UpdateRate: number?,
+		Precision: number?,
+		SafetyMode: boolean?,
+	}?) -> Group,
 
 	-- Global config
 	SetFrameBudget: (self: BitZone, n: number) -> BitZone,
 
 	-- Getters
-	GetGroupsAtPoint: (self: BitZone, position: Vector3) -> { Group },
-	GetCollectionOfItem: (self: BitZone, item: Item) -> Collection?,
+	GetObserversAtPoint: (self: BitZone, position: Vector3) -> { Observer },
+	GetGroupOfEntity: (self: BitZone, entity: Entity) -> Group?,
 	GetZones: (self: BitZone) -> { Zone },
+	GetObservers: (self: BitZone) -> { Observer },
 	GetGroups: (self: BitZone) -> { Group },
-	GetCollections: (self: BitZone) -> { Collection },
-	GetItems: (self: BitZone) -> { Item },
+	GetEntities: (self: BitZone) -> { Entity },
 
 	-- Queries
-	IsItemValidType: (self: BitZone, item: any) -> boolean,
-	IsItemInAnyCollection: (self: BitZone, item: Item) -> boolean,
+	IsEntityValidType: (self: BitZone, entity: any) -> boolean,
+	IsEntityInAnyGroup: (self: BitZone, entity: Entity) -> boolean,
 }
 
 export type Zone = {
@@ -73,79 +67,79 @@ export type Zone = {
 	Destroy: (zone: Zone) -> (),
 
 	-- State
-	BindToGroups: (zone: Zone, ...Group) -> Zone,
-	UnbindFromGroups: (zone: Zone, ...Group) -> Zone,
+	BindToObservers: (zone: Zone, ...Observer) -> Zone,
+	UnbindFromObservers: (zone: Zone, ...Observer) -> Zone,
 
 	-- Utility
-	GetGroups: (zone: Zone) -> { Group },
+	GetObservers: (zone: Zone) -> { Observer },
 
 	-- Props
 	Id: number,
 	Part: BasePart?,
 }
 
-export type Callback = (Item, Zone, any?) -> ()
+export type Callback = (Entity, Zone, any?) -> ()
+
+export type Observer = {
+	-- Lifecycle
+	Destroy: (self: Observer) -> (),
+
+	-- Config
+	SetPriority: (self: Observer, n: number) -> Observer,
+
+	-- State
+	Track: (self: Observer, Group) -> Observer,
+	Untrack: (self: Observer, Group) -> Observer,
+
+	-- Queries
+	IsPlayerInside: (self: Observer, player: Player) -> boolean,
+	IsLocalPlayerInside: (self: Observer) -> boolean,
+	IsEntityInside: (self: Observer, entity: Entity) -> boolean,
+	IsPointInside: (self: Observer, position: Vector3) -> boolean,
+
+	-- Getters
+	GetEntitiesInside: (self: Observer) -> { Entity },
+	GetEntities: (self: Observer) -> { Entity },
+	GetZones: (self: Observer) -> { Zone },
+	GetGroups: (self: Observer) -> { Group },
+
+	-- Events
+	OnEntered: (self: Observer, callback: Callback) -> () -> (),
+	OnExited: (self: Observer, callback: Callback) -> () -> (),
+	OnLocalPlayerEntered: (self: Observer, callback: (Zone) -> ()) -> () -> (),
+	OnLocalPlayerExited: (self: Observer, callback: (Zone) -> ()) -> () -> (),
+	OnPlayerEntered: (self: Observer, callback: (Player, Zone) -> ()) -> () -> (),
+	OnPlayerExited: (self: Observer, callback: (Player, Zone) -> ()) -> () -> (),
+
+	-- Props
+	Id: number,
+}
 
 export type Group = {
 	-- Lifecycle
 	Destroy: (self: Group) -> (),
 
 	-- Config
-	SetPriority: (self: Group, n: number) -> Group,
-
-	-- State
-	TrackCollections: (self: Group, ...Collection) -> Group,
-	UntrackCollections: (self: Group, ...Collection) -> Group,
-
-	-- Queries
-	IsPlayerInside: (self: Group, player: Player) -> boolean,
-	IsLocalPlayerInside: (self: Group) -> boolean,
-	IsItemInside: (self: Group, item: Item) -> boolean,
-	IsPointInside: (self: Group, position: Vector3) -> boolean,
-
-	-- Getters
-	GetItemsInside: (self: Group) -> { Item },
-	GetItems: (self: Group) -> { Item },
-	GetZones: (self: Group) -> { Zone },
-	GetCollections: (self: Group) -> { Collection },
-
-	-- Events
-	OnEntered: (self: Group, callback: Callback) -> () -> (),
-	OnExited: (self: Group, callback: Callback) -> () -> (),
-	OnLocalPlayerEntered: (self: Group, callback: (Zone) -> ()) -> () -> (),
-	OnLocalPlayerExited: (self: Group, callback: (Zone) -> ()) -> () -> (),
-	OnPlayerEntered: (self: Group, callback: (Player, Zone) -> ()) -> () -> (),
-	OnPlayerExited: (self: Group, callback: (Player, Zone) -> ()) -> () -> (),
-
-	-- Props
-	Id: number,
-}
-
-export type Collection = {
-	-- Lifecycle
-	Destroy: (self: Collection) -> (),
-
-	-- Config
-	SetUpdateRate: (self: Collection, hz: number) -> Collection,
-	SetPrecision: (self: Collection, n: number) -> Collection,
-	SetSafetyMode: (self: Collection, enabled: boolean) -> Collection,
+	SetUpdateRate: (self: Group, hz: number) -> Group,
+	SetPrecision: (self: Group, n: number) -> Group,
+	SetSafetyMode: (self: Group, enabled: boolean) -> Group,
 	SetConfig: (
-		self: Collection,
+		self: Group,
 		{
 			UpdateRate: number?,
 			Precision: number?,
 			SafetyMode: boolean?,
 		}?
-	) -> Collection,
+	) -> Group,
 
 	-- State
-	Add: (self: Collection, item: Item, customData: any?) -> Collection,
-	Remove: (self: Collection, item: Item) -> Collection,
+	Add: (self: Group, entity: Entity, customData: any?) -> Group,
+	Remove: (self: Group, entity: Entity) -> Group,
 
 	-- Getters
-	GetItems: (self: Collection) -> { Item },
-	GetGroups: (self: Collection) -> { Group },
-	GetConfig: (self: Collection) -> {
+	GetEntities: (self: Group) -> { Entity },
+	GetObservers: (self: Group) -> { Observer },
+	GetConfig: (self: Group) -> {
 		UpdateRate: number,
 		Precision: number,
 		SafetyMode: boolean,
@@ -153,9 +147,9 @@ export type Collection = {
 
 	-- Props
 	Id: number,
-	_items: { Item },
-	_itemIndices: { [Item]: number },
-	_itemData: { [Item]: ItemData },
+	_entities: { Entity },
+	_entityIndices: { [Entity]: number },
+	_entityData: { [Entity]: EntityData },
 	_config: {
 		UpdateRate: number,
 		PrecisionSq: number,
@@ -164,7 +158,7 @@ export type Collection = {
 	_lastProcessedIndex: number,
 }
 
-export type ItemTable = {
+export type EntityTable = {
 	Position: Vector3?,
 	WorldPosition: Vector3?,
 	CFrame: CFrame?,
@@ -172,11 +166,11 @@ export type ItemTable = {
 	[any]: any,
 }
 
-export type Item = BasePart | Model | Camera | Attachment | Bone | ItemTable
+export type Entity = BasePart | Model | Camera | Attachment | Bone | EntityTable
 
-export type ItemData = {
-	ActiveGroupMemberships: { [number]: number },
-	lastPosition: Vector3,
+export type EntityData = {
+	ActiveObserverMemberships: { [number]: number },
+	LastPosition: Vector3,
 	Strategy: number,
 	IsDirty: boolean,
 }

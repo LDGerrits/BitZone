@@ -36,57 +36,57 @@ function Zone.new(cframe: CFrame, size: Vector3, shape: Types.ShapeType, associa
 	return self
 end
 
-function Zone:BindToGroups(...): Types.Zone
-	local bound = State.ZoneBoundGroups[self.Id] or {}
-	State.ZoneBoundGroups[self.Id] = bound
-	for _, group in { ... } do
-		if not table.find(bound, group.Id) then
-			table.insert(bound, group.Id)
+function Zone:BindToObservers(...): Types.Zone
+	local bound = State.ZoneBoundObservers[self.Id] or {}
+	State.ZoneBoundObservers[self.Id] = bound
+	for _, observer in { ... } do
+		if not table.find(bound, observer.Id) then
+			table.insert(bound, observer.Id)
 		end
 	end
 	State.IsDirty = true
 	return self
 end
 
-function Zone:UnbindFromGroups(...): Types.Zone
-	local bound = State.ZoneBoundGroups[self.Id]
+function Zone:UnbindFromObservers(...): Types.Zone
+	local bound = State.ZoneBoundObservers[self.Id]
 	if not bound then
 		return self
 	end
 
-	for _, group in { ... } do
-		local idx = table.find(bound, group.Id)
+	for _, observer in { ... } do
+		local idx = table.find(bound, observer.Id)
 		while idx do
 			table.remove(bound, idx)
-			idx = table.find(bound, group.Id)
+			idx = table.find(bound, observer.Id)
 		end
 	end
 	if #bound == 0 then
-		State.ZoneBoundGroups[self.Id] = nil
+		State.ZoneBoundObservers[self.Id] = nil
 	end
 	State.IsDirty = true
 
 	return self
 end
 
-function Zone:GetGroups(): { Types.Group }
-	local bound = State.ZoneBoundGroups[self.Id]
+function Zone:GetObservers(): { Types.Observer }
+	local bound = State.ZoneBoundObservers[self.Id]
 	if not bound then
 		return {}
 	end
 
 	local result = {}
 	for _, id in bound do
-		local group = State.GroupIdToGroupObj[id]
-		if group then
-			table.insert(result, group)
+		local observer = State.ObserverIdToObserverObj[id]
+		if observer then
+			table.insert(result, observer)
 		end
 	end
 	return result
 end
 
 function Zone:Destroy()
-	State.ZoneBoundGroups[self.Id] = nil
+	State.ZoneBoundObservers[self.Id] = nil
 	State.ZoneIdToZoneObj[self.Id] = nil
 	State.Objects[self.Id] = nil
 	State.PendingRebuild = true

@@ -1,188 +1,236 @@
 --!strict
-
-local Players = game:GetService('Players')
-local RunService = game:GetService('RunService')
-
-local Geometry = require(script.Parent.Geometry)
-local LinearBVH = require(script.Parent.LinearBVH)
 local State = require(script.Parent.State)
 local Types = require(script.Parent.Types)
+local Config = require(script.Parent.Config)
 
-local IS_CLIENT = RunService:IsClient()
+local STRAT_POS = Config.Strategy.POS
+local STRAT_PRIM = Config.Strategy.PRIM
+local STRAT_WORLD = Config.Strategy.WORLD
+local STRAT_CFRAME = Config.Strategy.CFRAME
+local STRAT_PIVOT = Config.Strategy.PIVOT
 
 local Group = {}
 Group.__index = Group
 
-function Group.new(priority: number?): Types.Group
-	local group = (
+function Group.new(config: {
+	UpdateRate: number?,
+	Precision: number?,
+	SafetyMode: boolean?,
+}?): Types.Group
+	local hz = config and config.UpdateRate
+	assert(not hz or hz > 0, '[BitZone] UpdateRate must be greater than 0')
+
+	local n = config and config.Precision
+	assert(not n or n >= 0, '[BitZone] Precision must be non-negative')
+
+	local id = State.NextGroupId
+	State.NextGroupId += 1
+
+	local updateRate = hz or Config.Scheduler.UpdateRate
+	local precision = n or Config.Scheduler.Precision
+	local safetyMode = Config.Scheduler.SafetyMode
+	if config and config.SafetyMode ~= nil then
+		safetyMode = config.SafetyMode
+	end
+
+	local self = (
 		setmetatable({
-			Id = State.NextGroupId,
-			_mainConnections = {},
-			_playerTrackers = {},
+			Id = id,
+			_entities = {},
+			_entityIndices = {},
+			_entityData = {},
+			_config = {
+				UpdateRate = updateRate,
+				PrecisionSq = precision ^ 2,
+				SafetyMode = safetyMode,
+			},
+			_lastProcessedIndex = 1,
 		}, Group) :: any
 	) :: Types.Group
 
-	State.GroupPriorityMap[group.Id] = priority or 0
-	State.GroupEnteredCallbacks[group.Id] = {}
-	State.GroupExitedCallbacks[group.Id] = {}
-	State.GroupTrackingItems[group.Id] = {}
-	State.GroupIdToGroupObj[group.Id] = group
+	State.Groups[id] = self
+	State.GroupToObservers[id] = {}
 
-	State.NextGroupId += 1
-	return group
-end
-
-function Group:SetPriority(p: number): Types.Group
-	State.GroupPriorityMap[self.Id] = p
-	State.IsDirty = true
 	return self
 end
 
-function Group:TrackCollection(collection: Types.Collection): Types.Group
-	local colId = collection.Id
-	if not State.CollectionToGroups[colId] then
-		State.CollectionToGroups[colId] = {}
+function Group:SetConfig(config: {
+	UpdateRate: number?,
+	Precision: number?,
+	SafetyMode: boolean?,
+})
+	local hz = config.UpdateRate
+	assert(not hz or hz > 0, '[BitZone] UpdateRate must be greater than 0')
+
+	local n = config.Precision
+	assert(not n or n >= 0, '[BitZone] Precision must be non-negative')
+
+	if hz then
+		self._config.UpdateRate = hz
 	end
-	State.CollectionToGroups[colId][self.Id] = true
+	if n then
+		self._config.Precision = n
+	end
+	if config.SafetyMode ~= nil then
+		self._config.SafetyMode = config.SafetyMode
+	end
+end
+
+function Group:SetUpdateRate(hz: number): Types.Group
+	assert(hz > 0, '[BitZone] UpdateRate must be greater than 0')
+
+	self._config.UpdateRate = hz
+
 	return self
 end
 
-function Group:UntrackCollection(collection: Types.Collection): Types.Group
-	local colId = collection.Id
-	if State.CollectionToGroups[colId] then
-		State.CollectionToGroups[colId][self.Id] = nil
+function Group:SetPrecision(n: number): Types.Group
+	assert(n >= 0, '[BitZone] Precision must be non-negative')
+
+	self._config.PrecisionSq = n ^ 2
+	return self
+end
+
+function Group:SetSafetyMode(enabled: boolean): Types.Group
+	self.Con_configfig.SafetyMode = enabled
+	return self
+end
+
+function Group:Add(entity: Types.Entity, customData: any?): Types.Group
+	local oldGroupId = State.EntityToGroup[entity]
+	if oldGroupId then
+		if oldGroupId == self.Id then
+			return self
+		end
+		local oldGroup = State.Groups[oldGroupId]
+		if oldGroup then
+			oldGroup:Remove(entity)
+		end
 	end
 
-	local safetyMode = collection._config.SafetyMode
-	for _, item in collection._items do
-		local data = collection._itemData[item]
-		local oldZoneIdx = data and data.ActiveGroupMemberships[self.Id]
-		if oldZoneIdx then
-			data.ActiveGroupMemberships[self.Id] = nil
-			State.GroupTrackingItems[self.Id][item] = nil
+	local strat
+	if typeof(entity) == 'Instance' then
+		if entity:IsA('BasePart') then
+			strat = STRAT_POS
+		elseif entity:IsA('Attachment') or entity:IsA('Bone') then
+			strat = STRAT_WORLD
+		elseif entity:IsA('Camera') then
+			strat = STRAT_CFRAME
+		elseif entity:IsA('Model') then
+			strat = entity.PrimaryPart and STRAT_PRIM or STRAT_PIVOT
+		end
+	elseif typeof(entity) == 'table' then
+		if entity.Position then
+			strat = STRAT_POS
+		elseif entity.CFrame then
+			strat = STRAT_CFRAME
+		elseif entity.WorldPosition then
+			strat = STRAT_WORLD
+		elseif entity.GetPivot then
+			strat = STRAT_PIVOT
+		end
+	end
 
+	if not strat then
+		error(
+			string.format(
+				'[BitZone] Add Failed: The provided entity (%s) is not a supported type. '
+					.. 'Ensure it is a BasePart, Model, Attachment, Bone, Camera, or a table with a Position/CFrame.',
+				tostring(entity)
+			),
+			2
+		)
+	end
+
+	local data = {
+		LastPosition = Vector3.zero,
+		Strategy = strat,
+		IsDirty = true,
+		ActiveObserverMemberships = {},
+	}
+
+	local idx = #self._entities + 1
+	self._entities[idx] = entity
+	self._entityIndices[entity] = idx
+	self._entityData[entity] = data
+
+	State.EntityToGroup[entity] = self.Id
+
+	if customData then
+		if not State.EntityCustomData[entity] then
+			State.EntityCustomData[entity] = {}
+		end
+		State.EntityCustomData[entity] = customData
+	end
+
+	return self
+end
+
+function Group:Remove(entity: Types.Entity): Types.Group
+	if State.EntityToGroup[entity] ~= self.Id then
+		return self
+	end
+
+	local data = self._entityData[entity]
+
+	-- Trigger exit
+	local safetyMode = self._config.SafetyMode
+	for gId, oldZoneIdx in pairs(data.ActiveObserverMemberships) do
+		if State.ObserverTrackingEntities[gId] then
+			State.ObserverTrackingEntities[gId][entity] = nil
+		end
+
+		local cbs = State.ObserverExitedCallbacks[gId]
+		if cbs then
 			local z = State.ZoneIdToZoneObj[oldZoneIdx]
-			local cbs = State.GroupExitedCallbacks[self.Id]
-			if cbs then
-				local cd = State.ItemCustomData[item] and State.ItemCustomData[item][self.Id]
-				for _, fn in cbs do
-					if safetyMode then
-						task.spawn(fn, item, z, cd)
-					else
-						fn(item, z, cd)
-					end
+			local cd = State.EntityCustomData[entity] and State.EntityCustomData[entity][gId]
+			for _, fn in cbs do
+				if safetyMode then
+					task.spawn(fn, entity, z, cd)
+				else
+					fn(entity, z, cd)
 				end
 			end
 		end
 	end
 
+	-- Swap-remove from Array
+	local idx = self._entityIndices[entity]
+	local lastIdx = #self._entities
+	local lastEntity = self._entities[lastIdx]
+
+	if idx == lastIdx then
+		self._entities[lastIdx] = nil
+		self._entityIndices[entity] = nil
+	else
+		self._entities[idx] = lastEntity
+		self._entityIndices[lastEntity] = idx
+		self._entities[lastIdx] = nil
+		self._entityIndices[entity] = nil
+	end
+
+	self._entityData[entity] = nil
+	State.EntityToGroup[entity] = nil
+	State.EntityCustomData[entity] = nil
+
 	return self
 end
 
-function Group:IsPlayerInside(player: Player): boolean
-	local character = player.Character
-	if not character then
-		return false
-	end
-
-	local hrp = character:FindFirstChild('HumanoidRootPart')
-	if not hrp then
-		return false
-	end
-
-	return self:IsItemInside(hrp)
+function Group:GetEntities(): { Types.Entity }
+	local result = table.create(#self._entities)
+	table.move(self._entities, 1, #self._entities, 1, result)
+	return result
 end
 
-function Group:IsLocalPlayerInside(): boolean
-	if not IS_CLIENT then
-		error('[BitZone] IsLocalPlayerInside can only be called on the Client.', 2)
-	end
-
-	return self:IsPlayerInside(Players.LocalPlayer)
-end
-
-function Group:IsItemInside(item: Types.Item): boolean
-	local colId = State.ItemToCollection[item]
-	if not colId then
-		return false
-	end
-
-	local collection = State.Collections[colId]
-	local data = collection._itemData[item]
-	if not data then
-		return false
-	end
-
-	return data.ActiveGroupMemberships[self.Id] ~= nil
-end
-
-function Group:IsPointInside(position: Vector3): boolean
-	if not State.RootNode then
-		return false
-	end
-
-	local isInside = false
-	LinearBVH.QueryPoint(State.RootNode, position, function(zoneId)
-		if isInside then
-			return
-		end
-		local groups = State.ZoneBoundGroups[zoneId]
-		if groups and table.find(groups, self.Id) then
-			if Geometry.IsPointInShape(position, State.Objects[zoneId]) then
-				isInside = true
-			end
-		end
-	end)
-
-	return isInside
-end
-
-function Group:GetItemsInside(): { Types.Item }
-	local items = State.GroupTrackingItems[self.Id]
-	if not items then
-		return {}
-	end
-	local results = {}
-	for item, _ in pairs(items) do
-		table.insert(results, item)
-	end
-	return results
-end
-
-function Group:GetItems(): { Types.Item }
-	local results = {}
-	for colId, groups in pairs(State.CollectionToGroups) do
-		if groups[self.Id] then
-			local collection = State.Collections[colId]
-			for _, item in ipairs(collection._items) do
-				table.insert(results, item)
-			end
-		end
-	end
-	return results
-end
-
-function Group:GetZones(): { Types.Zone }
-	local results = {}
-	for zoneIdx, boundList in pairs(State.ZoneBoundGroups) do
-		if table.find(boundList, self.Id) then
-			local zone = State.ZoneIdToZoneObj[zoneIdx]
-			if zone then
-				table.insert(results, zone)
-			end
-		end
-	end
-	return results
-end
-
-function Group:GetCollections(): { Types.Collection }
+function Group:GetObservers(): { Types.Observer }
 	local result = {}
+	local observersMap = State.GroupToObservers[self.Id]
 
-	for colId, groupsMap in pairs(State.CollectionToGroups) do
-		if groupsMap[self.Id] then
-			local collection = State.Collections[colId]
-			if collection then
-				table.insert(result, collection)
+	if observersMap then
+		for observerId, _ in pairs(observersMap) do
+			local observer = State.ObserverIdToObserverObj[observerId]
+			if observer then
+				table.insert(result, observer)
 			end
 		end
 	end
@@ -190,80 +238,26 @@ function Group:GetCollections(): { Types.Collection }
 	return result
 end
 
-function Group:OnEntered(callback): () -> ()
-	table.insert(State.GroupEnteredCallbacks[self.Id], callback)
-	return function()
-		local i = table.find(State.GroupEnteredCallbacks[self.Id], callback)
-		if i then
-			table.remove(State.GroupEnteredCallbacks[self.Id], i)
-		end
-	end
-end
-
-function Group:OnExited(callback): () -> ()
-	table.insert(State.GroupExitedCallbacks[self.Id], callback)
-	return function()
-		local i = table.find(State.GroupExitedCallbacks[self.Id], callback)
-		if i then
-			table.remove(State.GroupExitedCallbacks[self.Id], i)
-		end
-	end
-end
-
-function Group:OnPlayerEntered(callback: (Player, Types.Zone) -> ()): () -> ()
-	return self:OnEntered(function(_item, zone, data: { Player: Player }?)
-		if data and data.Player then
-			callback(data.Player, zone)
-		end
-	end)
-end
-
-function Group:OnPlayerExited(callback: (Player, Types.Zone) -> ()): () -> ()
-	return self:OnExited(function(_item, zone, data: { Player: Player }?)
-		if data and data.Player then
-			callback(data.Player, zone)
-		end
-	end)
-end
-
-function Group:OnLocalPlayerEntered(callback: (Types.Zone) -> ()): () -> ()
-	assert(IS_CLIENT, '[BitZone] OnLocalPlayerEntered can only be called on the Client.')
-	return self:OnEntered(function(_item, zone, data: { Player: Player }?)
-		if data and data.Player == Players.LocalPlayer then
-			callback(zone)
-		end
-	end)
-end
-
-function Group:OnLocalPlayerExited(callback: (Types.Zone) -> ()): () -> ()
-	assert(IS_CLIENT, '[BitZone] OnLocalPlayerExited can only be called on the Client.')
-	return self:OnExited(function(_item, zone, data: { Player: Player }?)
-		if data and data.Player == Players.LocalPlayer then
-			callback(zone)
-		end
-	end)
+function Group:GetConfig(): {
+	UpdateRate: number,
+	Precision: number,
+	SafetyMode: boolean,
+}
+	local config = self._config
+	return {
+		UpdateRate = config.UpdateRate,
+		Precision = math.sqrt(config.PrecisionSq),
+		SafetyMode = config.SafetyMode,
+	}
 end
 
 function Group:Destroy(): ()
-	local id = self.Id
-	for _, groups in pairs(State.CollectionToGroups) do
-		groups[id] = nil
+	for i = #self._entities, 1, -1 do
+		self:Remove(self._entities[i])
 	end
 
-	for _, boundList in pairs(State.ZoneBoundGroups) do
-		local idx = table.find(boundList, id)
-		while idx do
-			table.remove(boundList, idx)
-			idx = table.find(boundList, id)
-		end
-	end
-
-	State.GroupPriorityMap[id] = nil
-	State.GroupEnteredCallbacks[id] = nil
-	State.GroupExitedCallbacks[id] = nil
-	State.GroupTrackingItems[id] = nil
-	State.GroupIdToGroupObj[id] = nil
-	State.IsDirty = true
+	State.GroupToObservers[self.Id] = nil
+	State.Groups[self.Id] = nil
 	setmetatable(self :: any, nil)
 end
 

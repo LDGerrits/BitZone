@@ -2,7 +2,7 @@
 
 local Config = {}
 
--- Static enums used to determine how to read an item's position
+-- Static enums used to determine how to read an entity's position
 Config.Strategy = {
 	POS = 1,
 	PRIM = 2,
@@ -18,11 +18,11 @@ Config.Scheduler = {
 	FrameBudget = 1 / 1000,
 
 	-- Target update frequency (Hz).
-	-- 30 means every item is checked ~30 times per second
+	-- 30 means every entity is checked ~30 times per second
 	UpdateRate = 30,
 
 	-- Minimum positional change (in studs) required to trigger a spatial query
-	-- _items moving less than this distance are considered stationary
+	-- Entities moving less than this distance are considered stationary
 	Precision = 0.1,
 
 	-- If true, callbacks are fired via task.spawn (safe but slower)

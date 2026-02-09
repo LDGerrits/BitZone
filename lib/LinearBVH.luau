@@ -4,7 +4,7 @@
 local Geometry = require(script.Parent.Geometry)
 local Types = require(script.Parent.Types)
 
-type ListItem = {
+type ListEntity = {
 	id: number,
 	mortonCode: number,
 }
@@ -15,7 +15,7 @@ LinearBVH.__index = LinearBVH
 local listCache = table.create(2000)
 local traversalStack = table.create(64)
 
-local function getSplitPos(list: { ListItem }, beginIndex: number, endIndex: number): number?
+local function getSplitPos(list: { ListEntity }, beginIndex: number, endIndex: number): number?
 	if (endIndex - beginIndex + 1) < 2 then
 		return nil
 	end
@@ -48,7 +48,7 @@ local function getSplitPos(list: { ListItem }, beginIndex: number, endIndex: num
 end
 
 local function createSubTree(
-	list: { ListItem },
+	list: { ListEntity },
 	boundsMin: { Vector3 },
 	boundsMax: { Vector3 },
 	beginIndex: number,
