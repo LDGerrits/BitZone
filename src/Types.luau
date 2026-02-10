@@ -158,7 +158,7 @@ export type Group = {
 	_entityData: { [Entity]: EntityData },
 	_config: {
 		updateRate: number,
-		PrecisionSq: number,
+		precisionSq: number,
 		safety: boolean,
 	},
 	_lastProcessedIndex: number,
