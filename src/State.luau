@@ -12,9 +12,12 @@ State.groups = {} :: { [number]: Types.Group }
 State.entityToGroup = {} :: { [Types.Entity]: number }
 State.groupToObservers = {} :: { [number]: { [number]: boolean } }
 
-State.shapes = {} :: { Types.BoundingVolume }
-State.rootNode = nil :: Types.Node?
-State.pendingRebuild = false
+State.staticShapes = {} :: { Types.BoundingVolume }
+State.dynamicShapes = {} :: { Types.BoundingVolume }
+State.staticRootNode = nil :: Types.Node?
+State.dynamicRootNode = nil :: Types.Node?
+State.pendingStaticRebuild = false
+State.pendingDynamicRebuild = false
 State.isDirty = false
 
 State.observerTrackingEntities = {} :: { [number]: { [Types.Entity]: boolean } }

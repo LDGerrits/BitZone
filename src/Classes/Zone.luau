@@ -7,7 +7,13 @@ local Types = require(script.Parent.Parent.Types)
 local Zone = {}
 Zone.__index = Zone
 
-function Zone.new(cframe: CFrame, size: Vector3, shapeType: Types.ShapeType, associatedPart: BasePart?): Types.Zone
+function Zone.new(
+	cframe: CFrame,
+	size: Vector3,
+	shapeType: Types.ShapeType,
+	associatedPart: BasePart?,
+	isDynamic: boolean?
+): Types.Zone
 	local halfSize = size / 2
 	local shape: Types.BoundingVolume = {
 		position = cframe.Position,
@@ -28,10 +34,18 @@ function Zone.new(cframe: CFrame, size: Vector3, shapeType: Types.ShapeType, ass
 
 	local id = State.nextZoneId
 	State.nextZoneId += 1
-	State.shapes[id] = shape
-	State.pendingRebuild = true
 
-	local self = (setmetatable({ id = id, part = associatedPart }, Zone) :: any) :: Types.Zone
+	if isDynamic then
+		State.dynamicShapes[id] = shape
+		State.pendingDynamicRebuild = true
+	else
+		State.staticShapes[id] = shape
+		State.pendingStaticRebuild = true
+	end
+
+	local self = (
+		setmetatable({ id = id, part = associatedPart, isDynamic = isDynamic or false }, Zone) :: any
+	) :: Types.Zone
 	State.zoneIdToZoneObj[id] = self
 
 	return self
@@ -71,7 +85,9 @@ function Zone:detach(...: Types.Group): Types.Zone
 end
 
 function Zone:update(newCFrame: CFrame?, newSize: Vector3?): Types.Zone
-	local shape = State.shapes[self.id]
+	local isDynamic = self.isDynamic
+
+	local shape = isDynamic and State.dynamicShapes[self.id] or State.staticShapes[self.id]
 
 	-- If no arguments, use reference part if possible
 	if not newCFrame and self.part then
@@ -102,7 +118,11 @@ function Zone:update(newCFrame: CFrame?, newSize: Vector3?): Types.Zone
 		shape.radiusSq = halfSize.Y * halfSize.Y
 	end
 
-	State.pendingRebuild = true
+	if isDynamic then
+		State.pendingDynamicRebuild = true
+	else
+		State.pendingStaticRebuild = true
+	end
 
 	return self
 end
@@ -124,19 +144,15 @@ function Zone:getObservers(): { Types.Observer }
 end
 
 function Zone:isPointInside(point: Vector3): boolean
-	local shape = State.shapes[self.id]
-	if not shape then
-		return false
-	end
-
+	local shape = State.staticShapes[self.id]
 	return Geometry.isPointInShape(point, shape)
 end
 
 function Zone:destroy()
 	State.zoneAttachedObservers[self.id] = nil
 	State.zoneIdToZoneObj[self.id] = nil
-	State.shapes[self.id] = nil
-	State.pendingRebuild = true
+	State.staticShapes[self.id] = nil
+	State.pendingStaticRebuild = true
 
 	setmetatable(self :: any, nil)
 end

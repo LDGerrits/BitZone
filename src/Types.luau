@@ -27,8 +27,8 @@ export type Node = {
 
 export type QuickZone = {
 	-- Factories
-	Zone: (cframe: CFrame, size: Vector3, shape: ShapeType, associatedPart: BasePart?) -> Zone,
-	ZoneFromPart: (part: BasePart) -> Zone,
+	Zone: (cframe: CFrame, size: Vector3, shape: ShapeType, associatedPart: BasePart?, isDynamic: boolean?) -> Zone,
+	ZoneFromPart: (part: BasePart, isDynamic: boolean?) -> Zone,
 	Observer: (priority: number?) -> Observer,
 	Group: ({
 		updateRate: number?,
@@ -81,6 +81,7 @@ export type Zone = {
 	-- Props
 	id: number,
 	part: BasePart?,
+	isDynamic: boolean,
 }
 
 export type Callback = (Entity, Zone, any?) -> ()

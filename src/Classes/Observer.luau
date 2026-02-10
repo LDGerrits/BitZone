@@ -126,18 +126,18 @@ function Observer:isEntityInside(entity: Types.Entity): boolean
 end
 
 function Observer:isPointInside(position: Vector3): boolean
-	if not State.rootNode then
+	if not State.staticRootNode then
 		return false
 	end
 
 	local isInside = false
-	LinearBVH.queryPoint(State.rootNode, position, function(zoneId)
+	LinearBVH.queryPoint(State.staticRootNode, position, function(zoneId)
 		if isInside then
 			return
 		end
 		local observers = State.zoneAttachedObservers[zoneId]
 		if observers and table.find(observers, self.id) then
-			if Geometry.isPointInShape(position, State.shapes[zoneId]) then
+			if Geometry.isPointInShape(position, State.staticShapes[zoneId]) then
 				isInside = true
 			end
 		end

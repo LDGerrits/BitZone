@@ -9,7 +9,7 @@ local State = require(script.Parent.Parent.State)
 local Config = require(script.Parent.Parent.Config)
 local Types = require(script.Parent.Parent.Types)
 
-local shapes = State.shapes
+local staticShapes = State.staticShapes
 local zoneAttachedObservers = State.zoneAttachedObservers
 local observerPriorityMap = State.ObserverPriorityMap
 local entityCustomData = State.entityCustomData
@@ -50,7 +50,7 @@ local function fireCallback(callbacks, entity, zone, customData, safeMode)
 end
 
 local function queryCallback(zoneId: number)
-	if not Geometry.isPointInShape(ctx_pos, shapes[zoneId]) then
+	if not Geometry.isPointInShape(ctx_pos, staticShapes[zoneId]) then
 		return
 	end
 
@@ -92,15 +92,15 @@ local function queryCallback(zoneId: number)
 end
 
 RunService.PostSimulation:Connect(function(dt: number)
-	if State.pendingRebuild then
+	if State.pendingStaticRebuild then
 		debug.profilebegin('QuickZone_Build')
-		State.rootNode = LinearBVH.build(shapes)
-		State.pendingRebuild = false
+		State.staticRootNode = LinearBVH.build(staticShapes)
+		State.pendingStaticRebuild = false
 		debug.profileend()
 		State.isDirty = true
 	end
 
-	if not State.rootNode then
+	if not State.staticRootNode then
 		return
 	end
 
@@ -185,7 +185,7 @@ RunService.PostSimulation:Connect(function(dt: number)
 				ctx_cCount = 0
 				ctx_highestWin = -math.huge
 
-				LinearBVH.queryPoint(State.rootNode, pos, queryCallback)
+				LinearBVH.queryPoint(State.staticRootNode, pos, queryCallback)
 
 				local current = d.activeObserverMemberships
 

@@ -11,7 +11,7 @@ local Zone = require(script.Classes.Zone)
 local Observer = require(script.Classes.Observer)
 local Scheduler = require(script.Core.Scheduler)
 
-local shapes = State.shapes
+local staticShapes = State.staticShapes
 local zoneAttachedObservers = State.zoneAttachedObservers
 local observerIdToObserverObj = State.observerIdToObserverObj
 
@@ -26,11 +26,17 @@ export type Entity = Types.Entity
 
 local QuickZone = {}
 
-function QuickZone.Zone(cframe: CFrame, size: Vector3, shape: Types.ShapeType, associatedPart: BasePart?): Zone
-	return Zone.new(cframe, size, shape, associatedPart)
+function QuickZone.Zone(
+	cframe: CFrame,
+	size: Vector3,
+	shape: Types.ShapeType,
+	associatedPart: BasePart?,
+	isDynamic: boolean?
+): Zone
+	return Zone.new(cframe, size, shape, associatedPart, isDynamic)
 end
 
-function QuickZone.ZoneFromPart(part: BasePart): Zone
+function QuickZone.ZoneFromPart(part: BasePart, isDynamic: boolean?): Zone
 	local shape: Types.ShapeType = 'Block'
 	if (part :: any).Shape == Enum.PartType.Ball then
 		shape = 'Ball'
@@ -39,7 +45,7 @@ function QuickZone.ZoneFromPart(part: BasePart): Zone
 	elseif part:IsA('WedgePart') then
 		shape = 'Wedge'
 	end
-	return Zone.new(part.CFrame, part.Size, shape, part)
+	return Zone.new(part.CFrame, part.Size, shape, part, isDynamic)
 end
 
 function QuickZone.Observer(priority: number?): Observer
@@ -83,9 +89,9 @@ function QuickZone:getObserversAtPoint(position: Vector3): { Observer }
 	local results = {}
 	local foundIds = {}
 
-	if State.rootNode then
-		LinearBVH.queryPoint(State.rootNode, position, function(zoneId)
-			if Geometry.isPointInShape(position, shapes[zoneId]) then
+	if State.staticRootNode then
+		LinearBVH.queryPoint(State.staticRootNode, position, function(zoneId)
+			if Geometry.isPointInShape(position, staticShapes[zoneId]) then
 				local observers = zoneAttachedObservers[zoneId]
 				if observers then
 					for _, id in observers do
@@ -185,7 +191,7 @@ function QuickZone:visualize(enabled: boolean): QuickZone
 	folder.Name = DEBUG_FOLDER_NAME
 	folder.Parent = workspace
 
-	for id, shape in State.shapes do
+	for id, shape in State.staticShapes do
 		local box = Instance.new('BoxHandleAdornment')
 		box.Size = shape.halfSize * 2
 		box.CFrame = shape.cframe
