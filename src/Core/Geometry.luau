@@ -1,7 +1,7 @@
 --!native
 --!strict
 
-local Types = require(script.Parent.Types)
+local Types = require(script.Parent.Parent.Types)
 
 local MORTON_SHIFT16_MASK = 0xFF0000FF
 local MORTON_SHIFT8_MASK = 0xF00F00F
@@ -28,14 +28,14 @@ end
 
 local Geometry = {}
 
-function Geometry.UnionBounds(minA: Vector3, maxA: Vector3, minB: Vector3, maxB: Vector3): (Vector3, Vector3)
+function Geometry.unionBounds(minA: Vector3, maxA: Vector3, minB: Vector3, maxB: Vector3): (Vector3, Vector3)
 	return vector.min(minA, minB), vector.max(maxA, maxB)
 end
 
-function Geometry.GetObjectBounds(object: Types.BoundingVolume): (Vector3, Vector3)
-	local halfSize = object.HalfSize
-	local cframe = object.CFrame
-	local center = object.Position
+function Geometry.getObjectBounds(object: Types.BoundingVolume): (Vector3, Vector3)
+	local halfSize = object.halfSize
+	local cframe = object.cframe
+	local center = object.position
 
 	local halfExtent = vector.abs(cframe.RightVector) * halfSize.X
 		+ vector.abs(cframe.UpVector) * halfSize.Y
@@ -44,7 +44,7 @@ function Geometry.GetObjectBounds(object: Types.BoundingVolume): (Vector3, Vecto
 	return center - halfExtent, center + halfExtent
 end
 
-function Geometry.PositionToMortonCode(position: Vector3, sceneMin: Vector3, sceneMax: Vector3): number
+function Geometry.positionToMortonCode(position: Vector3, sceneMin: Vector3, sceneMax: Vector3): number
 	local size = sceneMax - sceneMin
 	local scaleX = 1023 / size.X
 	local scaleY = 1023 / size.Y
@@ -58,27 +58,27 @@ function Geometry.PositionToMortonCode(position: Vector3, sceneMin: Vector3, sce
 	return bit32.bor(expandBits(x), bit32.lshift(expandBits(y), 1), bit32.lshift(expandBits(z), 2))
 end
 
-function Geometry.IsPointInShape(point: Vector3, object: Types.BoundingVolume): boolean
-	if object.Shape == 'Block' then
-		local localPoint = vector.abs(object.CFrame:PointToObjectSpace(point))
-		return vector.min(localPoint, object.HalfSize) == localPoint
-	elseif object.Shape == 'Ball' then
-		return vector.dot(object.Position - point, object.Position - point) <= object.radiusSquared
-	elseif object.Shape == 'Cylinder' then
+function Geometry.isPointInShape(point: Vector3, object: Types.BoundingVolume): boolean
+	if object.shape == 'Block' then
+		local localPoint = vector.abs(object.cframe:PointToObjectSpace(point))
+		return vector.min(localPoint, object.halfSize) == localPoint
+	elseif object.shape == 'Ball' then
+		return vector.dot(object.position - point, object.position - point) <= object.radiusSq
+	elseif object.shape == 'Cylinder' then
 		local toPoint = point - object.start :: Vector3
 		local projection = vector.dot(toPoint, object.axis :: Vector3)
 
 		if projection >= 0 and projection <= object.axisLength :: number then
 			local closestPointOnAxis = object.start :: Vector3 + object.axis :: Vector3 * projection
 			local distanceSq = vector.dot(point - closestPointOnAxis, point - closestPointOnAxis)
-			return distanceSq <= object.radiusSquared :: number
+			return distanceSq <= object.radiusSq :: number
 		end
 		return false
-	elseif object.Shape == 'Wedge' then
-		local localPoint = object.CFrame:PointToObjectSpace(point)
+	elseif object.shape == 'Wedge' then
+		local localPoint = object.cframe:PointToObjectSpace(point)
 		local absolutePoint = vector.abs(localPoint)
-		if vector.min(absolutePoint, object.HalfSize) == absolutePoint then
-			local size = object.HalfSize * 2
+		if vector.min(absolutePoint, object.halfSize) == absolutePoint then
+			local size = object.halfSize * 2
 			return (localPoint.Y / size.Y - localPoint.Z / size.Z) <= 0
 		end
 		return false

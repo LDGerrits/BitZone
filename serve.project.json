@@ -1,9 +1,9 @@
 {
-	"name": "bitzone-serve",
+	"name": "quickzone-serve",
 	"tree": {
 		"$className": "DataModel",
 		"ReplicatedStorage": {
-			"BitZone": {
+			"QuickZone": {
 				"$path": "default.project.json"
 			}
 		}

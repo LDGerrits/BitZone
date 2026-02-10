@@ -1,6 +1,6 @@
 {
-	"name": "bitzone",
+	"name": "quickzone",
 	"tree": {
-		"$path": "lib"
+		"$path": "src"
 	}
 }

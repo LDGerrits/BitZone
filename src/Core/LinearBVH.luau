@@ -2,9 +2,9 @@
 --!strict
 
 local Geometry = require(script.Parent.Geometry)
-local Types = require(script.Parent.Types)
+local Types = require(script.Parent.Parent.Types)
 
-type ListItem = {
+type ListEntity = {
 	id: number,
 	mortonCode: number,
 }
@@ -15,7 +15,7 @@ LinearBVH.__index = LinearBVH
 local listCache = table.create(2000)
 local traversalStack = table.create(64)
 
-local function getSplitPos(list: { ListItem }, beginIndex: number, endIndex: number): number?
+local function getSplitPos(list: { ListEntity }, beginIndex: number, endIndex: number): number?
 	if (endIndex - beginIndex + 1) < 2 then
 		return nil
 	end
@@ -48,7 +48,7 @@ local function getSplitPos(list: { ListItem }, beginIndex: number, endIndex: num
 end
 
 local function createSubTree(
-	list: { ListItem },
+	list: { ListEntity },
 	boundsMin: { Vector3 },
 	boundsMax: { Vector3 },
 	beginIndex: number,
@@ -66,7 +66,7 @@ local function createSubTree(
 
 		local left = createSubTree(list, boundsMin, boundsMax, beginIndex, mid - 1)
 		local right = createSubTree(list, boundsMin, boundsMax, mid, endIndex)
-		local min, max = Geometry.UnionBounds(left.min, left.max, right.min, right.max)
+		local min, max = Geometry.unionBounds(left.min, left.max, right.min, right.max)
 
 		return { min = min, max = max, id = -1, left = left, right = right }
 	end
@@ -75,13 +75,13 @@ end
 local HUGE_VECTOR = Vector3.one * math.huge
 local NEGATIVE_HUGE_VECTOR = -HUGE_VECTOR
 
-function LinearBVH.Build(objects: { Types.BoundingVolume }): Types.Node?
+function LinearBVH.build(objects: { Types.BoundingVolume }): Types.Node?
 	table.clear(traversalStack)
 
 	local min = HUGE_VECTOR
 	local max = NEGATIVE_HUGE_VECTOR
 	for _, object in objects do
-		local bMin, bMax = Geometry.GetObjectBounds(object)
+		local bMin, bMax = Geometry.getObjectBounds(object)
 		min = vector.min(min, bMin)
 		max = vector.max(max, bMax)
 	end
@@ -98,13 +98,13 @@ function LinearBVH.Build(objects: { Types.BoundingVolume }): Types.Node?
 
 	local count = 0
 	for id, object in objects do
-		local bMin, bMax = Geometry.GetObjectBounds(object)
+		local bMin, bMax = Geometry.getObjectBounds(object)
 		objMin[id], objMax[id] = bMin, bMax
 
 		count += 1
 		listCache[count] = {
 			id = id,
-			mortonCode = Geometry.PositionToMortonCode(object.Position, sceneMin, sceneMax),
+			mortonCode = Geometry.positionToMortonCode(object.position, sceneMin, sceneMax),
 		}
 	end
 
@@ -119,7 +119,7 @@ function LinearBVH.Build(objects: { Types.BoundingVolume }): Types.Node?
 	return nil
 end
 
-function LinearBVH.QueryPoint(root: Types.Node?, point: Vector3, callback: (id: number) -> ())
+function LinearBVH.queryPoint(root: Types.Node?, point: Vector3, callback: (id: number) -> ())
 	if not root then
 		return
 	end
