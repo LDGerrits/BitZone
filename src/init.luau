@@ -12,11 +12,15 @@ local Observer = require(script.Classes.Observer)
 local Scheduler = require(script.Core.Scheduler)
 
 local staticShapes = State.staticShapes
+local dynamicShapes = State.dynamicShapes
 local zoneAttachedObservers = State.zoneAttachedObservers
 local observerIdToObserverObj = State.observerIdToObserverObj
 
+local debugConnection: RBXScriptConnection?
+local debugFolder: Folder?
+local debugVisuals = {} :: { [number]: BoxHandleAdornment }
+
 local IS_CLIENT = RunService:IsClient()
-local DEBUG_FOLDER_NAME = 'QuickZone_Debug_Visuals'
 
 export type QuickZone = Types.QuickZone
 export type Zone = Types.Zone
@@ -177,38 +181,76 @@ function QuickZone:isEntityInAnyGroup(entity: Entity): boolean
 	return State.entityToGroup[entity] ~= nil
 end
 
-function QuickZone:visualize(enabled: boolean): QuickZone
-	local oldFolder = workspace:FindFirstChild(DEBUG_FOLDER_NAME)
-	if oldFolder then
-		oldFolder:Destroy()
+function QuickZone:visualize(enable: boolean): QuickZone
+	if debugConnection then
+		debugConnection:Disconnect()
+		debugConnection = nil
 	end
 
-	if not enabled then
+	if debugFolder then
+		debugFolder:Destroy()
+		debugFolder = nil
+	end
+	table.clear(debugVisuals)
+
+	if not enable then
 		return self
 	end
 
-	local folder = Instance.new('Folder')
-	folder.Name = DEBUG_FOLDER_NAME
-	folder.Parent = workspace
+	local newDebugFolder = Instance.new('Folder')
+	newDebugFolder.Name = 'QuickZone_Debug_Visuals'
+	newDebugFolder.Parent = workspace
+	debugFolder = newDebugFolder
 
-	for id, shape in State.staticShapes do
-		local box = Instance.new('BoxHandleAdornment')
-		box.Size = shape.halfSize * 2
-		box.CFrame = shape.cframe
-		box.Adornee = workspace.Terrain
-		box.Transparency = 0.6
-		box.AlwaysOnTop = true
-		box.ZIndex = 1
+	local function updateVisual(id: number, shape: Types.BoundingVolume, color: Color3)
+		local box = debugVisuals[id]
 
-		local observers = State.zoneAttachedObservers[id]
-		if observers and #observers > 0 then
-			box.Color3 = Color3.fromRGB(0, 255, 0)
-		else
-			box.Color3 = Color3.fromRGB(255, 0, 0)
+		if not box then
+			local newBox = Instance.new('BoxHandleAdornment')
+			newBox.Name = 'Zone_' .. id
+			newBox.Adornee = workspace.Terrain
+			newBox.Transparency = 0.6
+			newBox.AlwaysOnTop = true
+			newBox.ZIndex = 1
+			newBox.Parent = debugFolder
+			debugVisuals[id] = newBox
+			box = newBox
 		end
 
-		box.Parent = folder
+		box.Size = shape.halfSize * 2
+		box.CFrame = shape.cframe
+		box.Color3 = color
 	end
+
+	debugConnection = RunService.PreRender:Connect(function()
+		if not debugFolder then
+			return
+		end
+
+		-- Draw static zones
+		for id, shape in staticShapes do
+			if not debugVisuals[id] then
+				local isActive = State.zoneAttachedObservers[id] ~= nil
+				local color = isActive and Color3.fromRGB(0, 255, 0) or Color3.fromRGB(255, 0, 0)
+				updateVisual(id, shape, color)
+			end
+		end
+
+		-- Draw dynamic zones
+		for id, zone in dynamicShapes do
+			local isActive = State.zoneAttachedObservers[id] ~= nil
+			local color = isActive and Color3.fromRGB(0, 255, 100) or Color3.fromRGB(255, 0, 0)
+			updateVisual(id, zone, color)
+		end
+
+		-- Remove destroyed zones
+		for id, box in debugVisuals do
+			if not staticShapes[id] and not dynamicShapes[id] then
+				box:Destroy()
+				debugVisuals[id] = nil
+			end
+		end
+	end)
 
 	return self
 end
