@@ -60,6 +60,9 @@ export type QuickZone = {
 	-- Queries
 	isEntityValidType: (self: QuickZone, entity: any) -> boolean,
 	isEntityInAnyGroup: (self: QuickZone, entity: Entity) -> boolean,
+
+	-- Helpers
+	visualize: (self: QuickZone, enabled: boolean) -> QuickZone,
 }
 
 export type Zone = {

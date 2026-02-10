@@ -255,6 +255,7 @@ function Group:getConfig(): {
 end
 
 function Group:destroy(): ()
+	-- Must iterate backwards because remove() modifies array length
 	for i = #self._entities, 1, -1 do
 		self:remove(self._entities[i])
 	end

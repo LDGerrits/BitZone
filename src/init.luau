@@ -17,6 +17,7 @@ local zoneAttachedObservers = State.zoneAttachedObservers
 local observerIdToObserverObj = State.observerIdToObserverObj
 
 local IS_CLIENT = RunService:IsClient()
+local DEBUG_FOLDER_NAME = 'QuickZone_Debug_Visuals'
 
 export type QuickZone = Types.QuickZone
 export type Zone = Types.Zone
@@ -167,6 +168,42 @@ end
 
 function QuickZone:isEntityInAnyGroup(entity: Entity): boolean
 	return State.entityToGroup[entity] ~= nil
+end
+
+function QuickZone:visualize(enabled: boolean): QuickZone
+	local oldFolder = workspace:FindFirstChild(DEBUG_FOLDER_NAME)
+	if oldFolder then
+		oldFolder:Destroy()
+	end
+
+	if not enabled then
+		return self
+	end
+
+	local folder = Instance.new('Folder')
+	folder.Name = DEBUG_FOLDER_NAME
+	folder.Parent = workspace
+
+	for id, obj in State.zones do
+		local box = Instance.new('BoxHandleAdornment')
+		box.Size = obj.halfSize * 2
+		box.CFrame = obj.cframe
+		box.Adornee = workspace.Terrain
+		box.Transparency = 0.6
+		box.AlwaysOnTop = true
+		box.ZIndex = 1
+
+		local observers = State.zoneAttachedObservers[id]
+		if observers and #observers > 0 then
+			box.Color3 = Color3.fromRGB(0, 255, 0)
+		else
+			box.Color3 = Color3.fromRGB(255, 0, 0)
+		end
+
+		box.Parent = folder
+	end
+
+	return self
 end
 
 return QuickZone

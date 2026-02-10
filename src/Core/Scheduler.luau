@@ -91,7 +91,7 @@ local function queryCallback(zoneId: number)
 	end
 end
 
-RunService.Heartbeat:Connect(function(dt: number)
+RunService.PostSimulation:Connect(function(dt: number)
 	if State.pendingRebuild then
 		debug.profilebegin('QuickZone_Build')
 		State.rootNode = LinearBVH.build(zones)
