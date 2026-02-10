@@ -183,15 +183,17 @@ function Group:remove(...: Types.Entity): Types.Group
 			end
 
 			local cbs = State.observerExitedCallbacks[gId]
-			if cbs then
-				local z = State.zoneIdToZoneObj[oldZoneId]
-				local cd = State.entityCustomData[entity] and State.entityCustomData[entity][gId]
-				for _, fn in cbs do
-					if safety then
-						task.spawn(fn, entity, z, cd)
-					else
-						fn(entity, z, cd)
-					end
+			if not cbs then
+				continue
+			end
+
+			local z = State.zoneIdToZoneObj[oldZoneId]
+			local cd = State.entityCustomData[entity] and State.entityCustomData[entity][gId]
+			for _, fn in cbs do
+				if safety then
+					task.spawn(fn, entity, z, cd)
+				else
+					fn(entity, z, cd)
 				end
 			end
 		end
@@ -229,12 +231,14 @@ function Group:getObservers(): { Types.Observer }
 	local result = {}
 	local observersMap = State.groupToObservers[self.id]
 
-	if observersMap then
-		for observerId, _ in observersMap do
-			local observer = State.observerIdToObserverObj[observerId]
-			if observer then
-				table.insert(result, observer)
-			end
+	if not observersMap then
+		return result
+	end
+
+	for observerId, _ in observersMap do
+		local observer = State.observerIdToObserverObj[observerId]
+		if observer then
+			table.insert(result, observer)
 		end
 	end
 

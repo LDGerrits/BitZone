@@ -63,23 +63,27 @@ function Observer:unsubscribe(...: Types.Group): Types.Observer
 		for _, entity in group._entities do
 			local data = group._entityData[entity]
 			local oldZoneId = data and data.activeObserverMemberships[self.id]
-			if oldZoneId then
-				data.activeObserverMemberships[self.id] = nil
-				if State.observerTrackingEntities[self.id] then
-					State.observerTrackingEntities[self.id][entity] = nil
-				end
+			if not oldZoneId then
+				continue
+			end
 
-				local cbs = State.observerExitedCallbacks[self.id]
-				if cbs then
-					local z = State.zoneIdToZoneObj[oldZoneId]
-					local cd = State.entityCustomData[entity] and State.entityCustomData[entity][self.id]
-					for _, fn in cbs do
-						if safety then
-							task.spawn(fn, entity, z, cd)
-						else
-							fn(entity, z, cd)
-						end
-					end
+			data.activeObserverMemberships[self.id] = nil
+			if State.observerTrackingEntities[self.id] then
+				State.observerTrackingEntities[self.id][entity] = nil
+			end
+
+			local cbs = State.observerExitedCallbacks[self.id]
+			if not cbs then
+				continue
+			end
+
+			local z = State.zoneIdToZoneObj[oldZoneId]
+			local cd = State.entityCustomData[entity] and State.entityCustomData[entity][self.id]
+			for _, fn in cbs do
+				if safety then
+					task.spawn(fn, entity, z, cd)
+				else
+					fn(entity, z, cd)
 				end
 			end
 		end
@@ -191,11 +195,13 @@ end
 function Observer:getZones(): { Types.Zone }
 	local results = {}
 	for zoneId, attachedList in State.zoneAttachedObservers do
-		if table.find(attachedList, self.id) then
-			local zone = State.zoneIdToZoneObj[zoneId]
-			if zone then
-				table.insert(results, zone)
-			end
+		if not table.find(attachedList, self.id) then
+			continue
+		end
+
+		local zone = State.zoneIdToZoneObj[zoneId]
+		if zone then
+			table.insert(results, zone)
 		end
 	end
 	return results
@@ -205,11 +211,13 @@ function Observer:getGroups(): { Types.Group }
 	local result = {}
 
 	for groupId, observersMap in State.groupToObservers do
-		if observersMap[self.id] then
-			local group = State.groups[groupId]
-			if group then
-				table.insert(result, group)
-			end
+		if not observersMap[self.id] then
+			continue
+		end
+
+		local group = State.groups[groupId]
+		if group then
+			table.insert(result, group)
 		end
 	end
 

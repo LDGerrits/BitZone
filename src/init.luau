@@ -96,41 +96,39 @@ function QuickZone:getObserversAtPoint(position: Vector3): { Observer }
 	table.clear(foundIdsCache)
 	local results = {}
 
+	local function checkZone(zoneId: number, shapeList: { [number]: Types.BoundingVolume })
+		if not Geometry.isPointInShape(position, shapeList[zoneId]) then
+			return
+		end
+
+		local observers = zoneAttachedObservers[zoneId]
+		if not observers then
+			return
+		end
+
+		for _, id in observers do
+			if foundIdsCache[id] then
+				continue
+			end
+
+			foundIdsCache[id] = true
+			local observer = observerIdToObserverObj[id]
+
+			if observer then
+				table.insert(results, observer)
+			end
+		end
+	end
+
 	if State.dynamicRootNode then
 		LinearBVH.queryPoint(State.dynamicRootNode, position, function(zoneId)
-			if Geometry.isPointInShape(position, dynamicShapes[zoneId]) then
-				local observers = zoneAttachedObservers[zoneId]
-				if observers then
-					for _, id in observers do
-						if not foundIdsCache[id] then
-							foundIdsCache[id] = true
-							local observer = observerIdToObserverObj[id]
-							if observer then
-								table.insert(results, observer)
-							end
-						end
-					end
-				end
-			end
+			checkZone(zoneId, dynamicShapes)
 		end)
 	end
 
 	if State.staticRootNode then
 		LinearBVH.queryPoint(State.staticRootNode, position, function(zoneId)
-			if Geometry.isPointInShape(position, staticShapes[zoneId]) then
-				local observers = zoneAttachedObservers[zoneId]
-				if observers then
-					for _, id in observers do
-						if not foundIdsCache[id] then
-							foundIdsCache[id] = true
-							local observer = observerIdToObserverObj[id]
-							if observer then
-								table.insert(results, observer)
-							end
-						end
-					end
-				end
-			end
+			checkZone(zoneId, staticShapes)
 		end)
 	end
 
@@ -183,19 +181,13 @@ end
 
 function QuickZone:isEntityValidType(entity: any): boolean
 	if typeof(entity) == 'Instance' then
-		if
-			entity:IsA('BasePart')
+		return entity:IsA('BasePart')
 			or entity:IsA('Attachment')
 			or entity:IsA('Bone')
 			or entity:IsA('Camera')
 			or entity:IsA('Model')
-		then
-			return true
-		end
 	elseif typeof(entity) == 'table' then
-		if entity.Position or entity.CFrame or entity.WorldPosition or entity.GetPivot then
-			return true
-		end
+		return entity.Position or entity.CFrame or entity.WorldPosition or entity.GetPivot
 	end
 	return false
 end
