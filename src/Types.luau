@@ -35,12 +35,12 @@ export type BitZone = {
 		precision: number?,
 		safety: boolean?,
 	}?) -> Group,
-	GroupPlayers: ({
+	PlayerGroup: ({
 		updateRate: number?,
 		precision: number?,
 		safety: boolean?,
 	}?) -> Group,
-	GroupLocalPlayer: ({
+	LocalPlayerGroup: ({
 		updateRate: number?,
 		precision: number?,
 		safety: boolean?,

@@ -53,7 +53,7 @@ function BitZone.Group(config: {
 end
 
 -- TODO
-function BitZone.GroupPlayers(config: {
+function BitZone.PlayerGroup(config: {
 	updateRate: number?,
 	precision: number?,
 	safety: boolean?,
@@ -62,7 +62,7 @@ function BitZone.GroupPlayers(config: {
 end
 
 -- TODO
-function BitZone.GroupLocalPlayer(config: {
+function BitZone.LocalPlayerGroup(config: {
 	updateRate: number?,
 	precision: number?,
 	safety: boolean?,
