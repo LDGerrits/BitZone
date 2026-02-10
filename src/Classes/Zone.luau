@@ -149,8 +149,14 @@ end
 function Zone:destroy()
 	State.zoneAttachedObservers[self.id] = nil
 	State.zoneIdToZoneObj[self.id] = nil
-	State.staticShapes[self.id] = nil
-	State.pendingStaticRebuild = true
+
+	if self.isDynamic then
+		State.dynamicShapes[self.id] = nil
+		State.pendingDynamicRebuild = true
+	else
+		State.staticShapes[self.id] = nil
+		State.pendingStaticRebuild = true
+	end
 
 	setmetatable(self :: any, nil)
 end
