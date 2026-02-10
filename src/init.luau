@@ -9,12 +9,15 @@ local Types = require(script.Types)
 local State = require(script.State)
 local Zone = require(script.Classes.Zone)
 local Observer = require(script.Classes.Observer)
+local Config = require(script.Config)
 local Scheduler = require(script.Core.Scheduler)
 
 local staticShapes = State.staticShapes
 local dynamicShapes = State.dynamicShapes
 local zoneAttachedObservers = State.zoneAttachedObservers
 local observerIdToObserverObj = State.observerIdToObserverObj
+
+local foundIdsCache = {}
 
 local debugConnection: RBXScriptConnection?
 local debugFolder: Folder?
@@ -90,17 +93,17 @@ function QuickZone:setFrameBudget(n: number): QuickZone
 end
 
 function QuickZone:getObserversAtPoint(position: Vector3): { Observer }
+	table.clear(foundIdsCache)
 	local results = {}
-	local foundIds = {}
 
-	if State.staticRootNode then
-		LinearBVH.queryPoint(State.staticRootNode, position, function(zoneId)
-			if Geometry.isPointInShape(position, staticShapes[zoneId]) then
+	if State.dynamicRootNode then
+		LinearBVH.queryPoint(State.dynamicRootNode, position, function(zoneId)
+			if Geometry.isPointInShape(position, dynamicShapes[zoneId]) then
 				local observers = zoneAttachedObservers[zoneId]
 				if observers then
 					for _, id in observers do
-						if not foundIds[id] then
-							foundIds[id] = true
+						if not foundIdsCache[id] then
+							foundIdsCache[id] = true
 							local observer = observerIdToObserverObj[id]
 							if observer then
 								table.insert(results, observer)
@@ -111,6 +114,26 @@ function QuickZone:getObserversAtPoint(position: Vector3): { Observer }
 			end
 		end)
 	end
+
+	if State.staticRootNode then
+		LinearBVH.queryPoint(State.staticRootNode, position, function(zoneId)
+			if Geometry.isPointInShape(position, staticShapes[zoneId]) then
+				local observers = zoneAttachedObservers[zoneId]
+				if observers then
+					for _, id in observers do
+						if not foundIdsCache[id] then
+							foundIdsCache[id] = true
+							local observer = observerIdToObserverObj[id]
+							if observer then
+								table.insert(results, observer)
+							end
+						end
+					end
+				end
+			end
+		end)
+	end
+
 	return results
 end
 
@@ -124,7 +147,7 @@ end
 
 function QuickZone:getZones(): { Types.Zone }
 	local result = {}
-	for _, zone in pairs(State.zoneIdToZoneObj) do
+	for _, zone in State.zoneIdToZoneObj do
 		table.insert(result, zone)
 	end
 	return result
@@ -132,7 +155,7 @@ end
 
 function QuickZone:getObservers(): { Types.Observer }
 	local result = {}
-	for _, observer in pairs(State.observerIdToObserverObj) do
+	for _, observer in State.observerIdToObserverObj do
 		table.insert(result, observer)
 	end
 	return result
@@ -140,7 +163,7 @@ end
 
 function QuickZone:getGroups(): { Types.Group }
 	local result = {}
-	for _, group in pairs(State.groups) do
+	for _, group in State.groups do
 		table.insert(result, group)
 	end
 	return result
@@ -148,7 +171,7 @@ end
 
 function QuickZone:getEntities(): { Types.Entity }
 	local result = {}
-	for _, group in pairs(State.groups) do
+	for _, group in State.groups do
 		local count = #group._entities
 		if count > 0 then
 			local currentSize = #result
@@ -209,7 +232,7 @@ function QuickZone:visualize(enable: boolean): QuickZone
 			local newBox = Instance.new('BoxHandleAdornment')
 			newBox.Name = 'Zone_' .. id
 			newBox.Adornee = workspace.Terrain
-			newBox.Transparency = 0.6
+			newBox.Transparency = Config.Debug.transparency
 			newBox.AlwaysOnTop = true
 			newBox.ZIndex = 1
 			newBox.Parent = debugFolder
@@ -231,7 +254,7 @@ function QuickZone:visualize(enable: boolean): QuickZone
 		for id, shape in staticShapes do
 			if not debugVisuals[id] then
 				local isActive = State.zoneAttachedObservers[id] ~= nil
-				local color = isActive and Color3.fromRGB(0, 255, 0) or Color3.fromRGB(255, 0, 0)
+				local color = isActive and Config.Debug.staticActive or Config.Debug.staticInactive
 				updateVisual(id, shape, color)
 			end
 		end
@@ -239,11 +262,11 @@ function QuickZone:visualize(enable: boolean): QuickZone
 		-- Draw dynamic zones
 		for id, zone in dynamicShapes do
 			local isActive = State.zoneAttachedObservers[id] ~= nil
-			local color = isActive and Color3.fromRGB(0, 255, 100) or Color3.fromRGB(255, 0, 0)
+			local color = isActive and Config.Debug.dynamicActive or Config.Debug.dynamicInactive
 			updateVisual(id, zone, color)
 		end
 
-		-- Remove destroyed zones
+		-- Destroy removed zones
 		for id, box in debugVisuals do
 			if not staticShapes[id] and not dynamicShapes[id] then
 				box:Destroy()
