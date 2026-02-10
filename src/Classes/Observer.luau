@@ -126,22 +126,39 @@ function Observer:isEntityInside(entity: Types.Entity): boolean
 end
 
 function Observer:isPointInside(position: Vector3): boolean
-	if not State.staticRootNode then
-		return false
+	local isInside = false
+
+	if State.dynamicRootNode then
+		LinearBVH.queryPoint(State.dynamicRootNode, position, function(zoneId)
+			if isInside then
+				return
+			end
+			local observers = State.zoneAttachedObservers[zoneId]
+			if observers and table.find(observers, self.id) then
+				if Geometry.isPointInShape(position, State.dynamicShapes[zoneId]) then
+					isInside = true
+				end
+			end
+		end)
+
+		if isInside then
+			return true
+		end
 	end
 
-	local isInside = false
-	LinearBVH.queryPoint(State.staticRootNode, position, function(zoneId)
-		if isInside then
-			return
-		end
-		local observers = State.zoneAttachedObservers[zoneId]
-		if observers and table.find(observers, self.id) then
-			if Geometry.isPointInShape(position, State.staticShapes[zoneId]) then
-				isInside = true
+	if State.staticRootNode then
+		LinearBVH.queryPoint(State.staticRootNode, position, function(zoneId)
+			if isInside then
+				return
 			end
-		end
-	end)
+			local observers = State.zoneAttachedObservers[zoneId]
+			if observers and table.find(observers, self.id) then
+				if Geometry.isPointInShape(position, State.staticShapes[zoneId]) then
+					isInside = true
+				end
+			end
+		end)
+	end
 
 	return isInside
 end
@@ -152,7 +169,7 @@ function Observer:getEntitiesInside(): { Types.Entity }
 		return {}
 	end
 	local results = {}
-	for entity, _ in pairs(entities) do
+	for entity, _ in entities do
 		table.insert(results, entity)
 	end
 	return results
@@ -160,10 +177,10 @@ end
 
 function Observer:getEntities(): { Types.Entity }
 	local results = {}
-	for groupId, observers in pairs(State.groupToObservers) do
+	for groupId, observers in State.groupToObservers do
 		if observers[self.id] then
 			local group = State.groups[groupId]
-			for _, entity in ipairs(group._entities) do
+			for _, entity in group._entities do
 				table.insert(results, entity)
 			end
 		end
@@ -173,7 +190,7 @@ end
 
 function Observer:getZones(): { Types.Zone }
 	local results = {}
-	for zoneId, attachedList in pairs(State.zoneAttachedObservers) do
+	for zoneId, attachedList in State.zoneAttachedObservers do
 		if table.find(attachedList, self.id) then
 			local zone = State.zoneIdToZoneObj[zoneId]
 			if zone then
@@ -187,7 +204,7 @@ end
 function Observer:getGroups(): { Types.Group }
 	local result = {}
 
-	for groupId, observersMap in pairs(State.groupToObservers) do
+	for groupId, observersMap in State.groupToObservers do
 		if observersMap[self.id] then
 			local group = State.groups[groupId]
 			if group then
@@ -255,11 +272,11 @@ end
 
 function Observer:destroy(): ()
 	local id = self.id
-	for _, observers in pairs(State.groupToObservers) do
+	for _, observers in State.groupToObservers do
 		observers[id] = nil
 	end
 
-	for _, attachedList in pairs(State.zoneAttachedObservers) do
+	for _, attachedList in State.zoneAttachedObservers do
 		local idx = table.find(attachedList, id)
 		while idx do
 			table.remove(attachedList, idx)

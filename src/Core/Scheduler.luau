@@ -10,6 +10,7 @@ local Config = require(script.Parent.Parent.Config)
 local Types = require(script.Parent.Parent.Types)
 
 local staticShapes = State.staticShapes
+local dynamicShapes = State.dynamicShapes
 local zoneAttachedObservers = State.zoneAttachedObservers
 local observerPriorityMap = State.ObserverPriorityMap
 local entityCustomData = State.entityCustomData
@@ -26,34 +27,14 @@ local ctx_candidatePriority: { [number]: number } = table.create(16)
 local ctx_candidateIndex: { [number]: number } = table.create(16)
 local ctx_candidateList: { [number]: number } = table.create(16)
 
-local frameBudget = Config.Scheduler.FrameBudget
+local frameBudget = Config.Scheduler.frameBudget
 
 local STRAT_POS = Config.Strategy.POS
 local STRAT_PRIM = Config.Strategy.PRIM
 local STRAT_WORLD = Config.Strategy.WORLD
 local STRAT_CFRAME = Config.Strategy.CFRAME
 
-local function fireCallback(callbacks, entity, zone, customData, safeMode)
-	if not callbacks then
-		return
-	end
-
-	if safeMode then
-		for _, cb in callbacks do
-			task.spawn(cb, entity, zone, customData)
-		end
-	else
-		for _, cb in callbacks do
-			cb(entity, zone, customData)
-		end
-	end
-end
-
-local function queryCallback(zoneId: number)
-	if not Geometry.isPointInShape(ctx_pos, staticShapes[zoneId]) then
-		return
-	end
-
+local function processZoneHit(zoneId: number)
 	local observers = zoneAttachedObservers[zoneId]
 	if not observers then
 		return
@@ -73,6 +54,7 @@ local function queryCallback(zoneId: number)
 			end
 		end
 	end
+
 	if not isRelevant then
 		return
 	end
@@ -91,16 +73,48 @@ local function queryCallback(zoneId: number)
 	end
 end
 
+local function queryCallbackStatic(zoneId: number)
+	if Geometry.isPointInShape(ctx_pos, staticShapes[zoneId]) then
+		processZoneHit(zoneId)
+	end
+end
+
+local function queryCallbackDynamic(zoneId: number)
+	if Geometry.isPointInShape(ctx_pos, dynamicShapes[zoneId]) then
+		processZoneHit(zoneId)
+	end
+end
+
+local function fireCallback(callbacks, entity, zone, customData, safeMode)
+	if not callbacks then
+		return
+	end
+
+	if safeMode then
+		for _, cb in callbacks do
+			task.spawn(cb, entity, zone, customData)
+		end
+	else
+		for _, cb in callbacks do
+			cb(entity, zone, customData)
+		end
+	end
+end
+
 RunService.PostSimulation:Connect(function(dt: number)
-	if State.pendingStaticRebuild then
-		debug.profilebegin('QuickZone_Build')
-		State.staticRootNode = LinearBVH.build(staticShapes)
-		State.pendingStaticRebuild = false
-		debug.profileend()
+	if State.pendingDynamicRebuild then
+		State.dynamicRootNode = LinearBVH.build(dynamicShapes)
+		State.pendingDynamicRebuild = false
 		State.isDirty = true
 	end
 
-	if not State.staticRootNode then
+	if State.pendingStaticRebuild then
+		State.staticRootNode = LinearBVH.build(staticShapes)
+		State.pendingStaticRebuild = false
+		State.isDirty = true
+	end
+
+	if not State.staticRootNode and not State.dynamicRootNode then
 		return
 	end
 
@@ -109,8 +123,11 @@ RunService.PostSimulation:Connect(function(dt: number)
 	local forceRefresh = State.isDirty
 	State.isDirty = false
 
-	-- Each group is processed one-by-one
-	for _, group in pairs(State.groups) do
+	local staticRoot = State.staticRootNode
+	local dynamicRoot = State.dynamicRootNode
+
+	-- Process each group
+	for _, group in State.groups do
 		local list = group._entities
 		local totalEntities = #list
 		if totalEntities == 0 then
@@ -185,12 +202,18 @@ RunService.PostSimulation:Connect(function(dt: number)
 				ctx_cCount = 0
 				ctx_highestWin = -math.huge
 
-				LinearBVH.queryPoint(State.staticRootNode, pos, queryCallback)
+				if dynamicRoot then
+					LinearBVH.queryPoint(dynamicRoot, pos, queryCallbackDynamic)
+				end
+
+				if staticRoot then
+					LinearBVH.queryPoint(staticRoot, pos, queryCallbackStatic)
+				end
 
 				local current = d.activeObserverMemberships
 
 				-- Exits
-				for gId, oldZoneId in pairs(current) do
+				for gId, oldZoneId in current do
 					local newPri = ctx_candidatePriority[gId]
 					if not newPri or newPri < ctx_highestWin then
 						current[gId] = nil

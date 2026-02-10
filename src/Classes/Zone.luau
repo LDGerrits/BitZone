@@ -85,9 +85,7 @@ function Zone:detach(...: Types.Group): Types.Zone
 end
 
 function Zone:update(newCFrame: CFrame?, newSize: Vector3?): Types.Zone
-	local isDynamic = self.isDynamic
-
-	local shape = isDynamic and State.dynamicShapes[self.id] or State.staticShapes[self.id]
+	local shape = self.isDynamic and State.dynamicShapes[self.id] or State.staticShapes[self.id]
 
 	-- If no arguments, use reference part if possible
 	if not newCFrame and self.part then
@@ -118,7 +116,7 @@ function Zone:update(newCFrame: CFrame?, newSize: Vector3?): Types.Zone
 		shape.radiusSq = halfSize.Y * halfSize.Y
 	end
 
-	if isDynamic then
+	if self.isDynamic then
 		State.pendingDynamicRebuild = true
 	else
 		State.pendingStaticRebuild = true
@@ -144,7 +142,7 @@ function Zone:getObservers(): { Types.Observer }
 end
 
 function Zone:isPointInside(point: Vector3): boolean
-	local shape = State.staticShapes[self.id]
+	local shape = self.isDynamic and State.dynamicShapes[self.id] or State.staticShapes[self.id]
 	return Geometry.isPointInShape(point, shape)
 end
 
