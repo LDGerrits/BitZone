@@ -21,10 +21,13 @@ local observerIdToObserverObj = State.observerIdToObserverObj
 local foundIdsCache = {}
 
 local sharedPlayerGroup: Types.Group?
+local sharedLocalPlayerGroup: Types.Group?
 
 local debugConnection: RBXScriptConnection?
 local debugFolder: Folder?
 local debugVisuals = {} :: { [number]: BoxHandleAdornment }
+
+local IS_CLIENT = RunService:IsClient()
 
 export type QuickZone = Types.QuickZone
 export type Zone = Types.Zone
@@ -55,6 +58,16 @@ local function trackPlayer(group: Types.Group, player: Player, trackerStore: { [
 		cleanCharacter()
 
 		task.spawn(function()
+			-- Give LocalPlayerGroup priority over PlayerGroup for LocalPlayer
+			if
+				IS_CLIENT
+				and group == sharedPlayerGroup
+				and player == Players.LocalPlayer
+				and sharedLocalPlayerGroup
+			then
+				return
+			end
+
 			local hrp = char:WaitForChild('HumanoidRootPart', 10)
 
 			if not hrp or not player:IsDescendantOf(Players) then
@@ -174,8 +187,7 @@ function QuickZone.PlayerGroup(config: {
 		trackPlayer(group, player, trackerStore)
 	end
 
-	-- Hook Destroy to clean up private state
-	local originalDestroy = group.destroy
+	local originalDestroyHook = group.destroy
 	group.destroy = function(self)
 		for _, conn in mainConnections do
 			conn:Disconnect()
@@ -183,12 +195,42 @@ function QuickZone.PlayerGroup(config: {
 		for _, cleanup in trackerStore do
 			cleanup()
 		end
-
 		table.clear(mainConnections)
 		table.clear(trackerStore)
 		sharedPlayerGroup = nil
+		originalDestroyHook(self)
+	end
 
-		originalDestroy(self)
+	return group
+end
+
+function QuickZone.LocalPlayerGroup(config: {
+	updateRate: number?,
+	precision: number?,
+	safety: boolean?,
+}?): Group
+	assert(IS_CLIENT, '[QuickZone] LocalPlayerGroup can only be called on the Client.')
+
+	if sharedLocalPlayerGroup then
+		if config then
+			sharedLocalPlayerGroup:setConfig(config)
+		end
+		return sharedLocalPlayerGroup
+	end
+
+	local group = Group.new(config)
+	sharedLocalPlayerGroup = group
+
+	local lp = Players.LocalPlayer
+	local trackers = {}
+
+	trackPlayer(group, lp, trackers)
+
+	local originalDestroyHook = group.destroy
+	group.destroy = function(self)
+		untrackPlayer(lp, trackers)
+		sharedLocalPlayerGroup = nil
+		originalDestroyHook(self)
 	end
 
 	return group
