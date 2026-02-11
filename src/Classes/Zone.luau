@@ -146,7 +146,7 @@ function Zone:isPointInside(point: Vector3): boolean
 	return Geometry.isPointInShape(point, shape)
 end
 
-function Zone:destroy()
+function Zone:destroy(): ()
 	State.zoneAttachedObservers[self.id] = nil
 	State.zoneIdToZoneObj[self.id] = nil
 

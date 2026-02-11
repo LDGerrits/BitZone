@@ -148,7 +148,7 @@ function QuickZone.Group(config: {
 	updateRate: number?,
 	precision: number?,
 	safety: boolean?,
-}?)
+}?): Group
 	return Group.new(config)
 end
 

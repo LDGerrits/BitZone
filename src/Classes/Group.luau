@@ -60,7 +60,7 @@ function Group:setConfig(config: {
 	updateRate: number?,
 	precision: number?,
 	safety: boolean?,
-})
+}): Types.Group
 	local hz = config.updateRate
 	assert(not hz or hz > 0, '[QuickZone] updateRate must be greater than 0')
 
@@ -71,11 +71,13 @@ function Group:setConfig(config: {
 		self._config.updateRate = hz
 	end
 	if n then
-		self._config.precision = n
+		self._config.precisionSq = n ^ 2
 	end
 	if config.safety ~= nil then
 		self._config.safety = config.safety
 	end
+
+	return self
 end
 
 function Group:setUpdateRate(hz: number): Types.Group
