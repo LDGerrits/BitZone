@@ -1,5 +1,6 @@
 --!strict
 
+local Players = game:GetService('Players')
 local RunService = game:GetService('RunService')
 
 local Group = require(script.Classes.Group)
@@ -19,17 +20,87 @@ local observerIdToObserverObj = State.observerIdToObserverObj
 
 local foundIdsCache = {}
 
+local sharedPlayerGroup: Types.Group?
+
 local debugConnection: RBXScriptConnection?
 local debugFolder: Folder?
 local debugVisuals = {} :: { [number]: BoxHandleAdornment }
-
-local IS_CLIENT = RunService:IsClient()
 
 export type QuickZone = Types.QuickZone
 export type Zone = Types.Zone
 export type Observer = Types.Observer
 export type Group = Types.Group
 export type Entity = Types.Entity
+
+local function trackPlayer(group: Types.Group, player: Player, trackerStore: { [Player]: () -> () })
+	if trackerStore[player] then
+		return
+	end
+
+	local charConns: { RBXScriptConnection } = {}
+	local currentHrp: BasePart? = nil
+
+	local function cleanCharacter()
+		if currentHrp then
+			group:remove(currentHrp)
+			currentHrp = nil
+		end
+		for _, c in charConns do
+			c:Disconnect()
+		end
+		table.clear(charConns)
+	end
+
+	local function onCharAdded(char: Model)
+		cleanCharacter()
+
+		task.spawn(function()
+			local hrp = char:WaitForChild('HumanoidRootPart', 10)
+
+			if not hrp or not player:IsDescendantOf(Players) then
+				return
+			end
+
+			if player.Character ~= char then
+				return
+			end
+
+			if hrp:IsA('BasePart') then
+				currentHrp = hrp
+
+				group:add(hrp, { Player = player }) -- Custom data is needed to trigger specific player events
+
+				table.insert(
+					charConns,
+					hrp.AncestryChanged:Connect(function(_, parent)
+						if not parent then
+							cleanCharacter()
+						end
+					end)
+				)
+			end
+		end)
+	end
+
+	local addedConn = player.CharacterAdded:Connect(onCharAdded)
+
+	trackerStore[player] = function()
+		addedConn:Disconnect()
+		cleanCharacter()
+	end
+
+	if player.Character then
+		onCharAdded(player.Character)
+	end
+end
+
+local function untrackPlayer(player: Player, trackerStore: { [Player]: () -> () })
+	local cleanup = trackerStore[player]
+	if cleanup then
+		cleanup()
+		trackerStore[player] = nil
+	end
+end
 
 local QuickZone = {}
 
@@ -67,24 +138,60 @@ function QuickZone.Group(config: {
 	return Group.new(config)
 end
 
--- TODO
 function QuickZone.PlayerGroup(config: {
 	updateRate: number?,
 	precision: number?,
 	safety: boolean?,
 }?): Group
-	return
-end
+	if sharedPlayerGroup then
+		if config then
+			sharedPlayerGroup:setConfig(config)
+		end
+		return sharedPlayerGroup
+	end
 
--- TODO
-function QuickZone.LocalPlayerGroup(config: {
-	updateRate: number?,
-	precision: number?,
-	safety: boolean?,
-}?): Group
-	assert(IS_CLIENT, '[QuickZone] TrackLocalPlayer can only be called on the Client.')
+	local group = Group.new(config)
+	sharedPlayerGroup = group
 
-	return
+	local trackerStore = {} :: { [Player]: () -> () }
+	local mainConnections = {} :: { RBXScriptConnection }
+
+	table.insert(
+		mainConnections,
+		Players.PlayerAdded:Connect(function(player)
+			trackPlayer(group, player, trackerStore)
+		end)
+	)
+
+	table.insert(
+		mainConnections,
+		Players.PlayerRemoving:Connect(function(player)
+			untrackPlayer(player, trackerStore)
+		end)
+	)
+
+	for _, player in Players:GetPlayers() do
+		trackPlayer(group, player, trackerStore)
+	end
+
+	-- Hook Destroy to clean up private state
+	local originalDestroy = group.destroy
+	group.destroy = function(self)
+		for _, conn in mainConnections do
+			conn:Disconnect()
+		end
+		for _, cleanup in trackerStore do
+			cleanup()
+		end
+
+		table.clear(mainConnections)
+		table.clear(trackerStore)
+		sharedPlayerGroup = nil
+
+		originalDestroy(self)
+	end
+
+	return group
 end
 
 function QuickZone:setFrameBudget(n: number): QuickZone

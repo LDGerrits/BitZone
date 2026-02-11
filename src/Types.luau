@@ -40,11 +40,6 @@ export type QuickZone = {
 		precision: number?,
 		safety: boolean?,
 	}?) -> Group,
-	LocalPlayerGroup: ({
-		updateRate: number?,
-		precision: number?,
-		safety: boolean?,
-	}?) -> Group,
 
 	-- Global config
 	setFrameBudget: (self: QuickZone, n: number) -> QuickZone,
