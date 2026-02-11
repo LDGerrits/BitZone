@@ -257,6 +257,33 @@ function QuickZone:setFrameBudget(n: number): QuickZone
 	return QuickZone
 end
 
+function QuickZone:getZonesAtPoint(position: Vector3): { Zone }
+	local results = {}
+
+	local function checkZone(zoneId: number, shapeList: { [number]: Types.BoundingVolume })
+		if Geometry.isPointInShape(position, shapeList[zoneId]) then
+			local zone = State.zoneIdToZoneObj[zoneId]
+			if zone then
+				table.insert(results, zone)
+			end
+		end
+	end
+
+	if State.dynamicRootNode then
+		LinearBVH.queryPoint(State.dynamicRootNode, position, function(zoneId)
+			checkZone(zoneId, dynamicShapes)
+		end)
+	end
+
+	if State.staticRootNode then
+		LinearBVH.queryPoint(State.staticRootNode, position, function(zoneId)
+			checkZone(zoneId, staticShapes)
+		end)
+	end
+
+	return results
+end
+
 function QuickZone:getObserversAtPoint(position: Vector3): { Observer }
 	table.clear(foundIdsCache)
 	local results = {}

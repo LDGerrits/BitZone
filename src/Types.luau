@@ -50,6 +50,7 @@ export type QuickZone = {
 	setFrameBudget: (self: QuickZone, n: number) -> QuickZone,
 
 	-- Getters
+	getZonesAtPoint: (self: QuickZone, position: Vector3) -> { Zone },
 	getObserversAtPoint: (self: QuickZone, position: Vector3) -> { Observer },
 	getGroupOfEntity: (self: QuickZone, entity: Entity) -> Group?,
 	getZones: (self: QuickZone) -> { Zone },
@@ -106,11 +107,11 @@ export type Observer = {
 	isLocalPlayerInside: (self: Observer) -> boolean,
 	isEntityInside: (self: Observer, entity: Entity) -> boolean,
 	isPointInside: (self: Observer, position: Vector3) -> boolean,
+	getEntitiesInside: (self: Observer) -> { Entity },
 
 	-- Getters
 	getId: (self: Observer) -> number,
 	getPriority: (self: Observer) -> number,
-	getEntitiesInside: (self: Observer) -> { Entity },
 	getZones: (self: Observer) -> { Zone },
 	getGroups: (self: Observer) -> { Group },
 
