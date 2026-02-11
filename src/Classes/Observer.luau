@@ -49,7 +49,7 @@ function Observer.new(priority: number?): Types.Observer
 		id = State.nextObserverId,
 	}, Observer) :: any) :: Types.Observer
 
-	State.ObserverPriorityMap[observer.id] = priority or 0
+	State.observerPriorityMap[observer.id] = priority or 0
 	State.observerEnteredCallbacks[observer.id] = {}
 	State.observerExitedCallbacks[observer.id] = {}
 	State.observerTrackingEntities[observer.id] = {}
@@ -60,7 +60,6 @@ function Observer.new(priority: number?): Types.Observer
 	return observer
 end
 
--- TODO
 function Observer:setEnabled(enabled: boolean): Types.Group
 	local wasEnabled = self:isEnabled()
 
@@ -92,7 +91,7 @@ function Observer:setEnabled(enabled: boolean): Types.Group
 end
 
 function Observer:setPriority(p: number): Types.Observer
-	State.ObserverPriorityMap[self.id] = p
+	State.observerPriorityMap[self.id] = p
 	State.isDirty = true
 	return self
 end
@@ -201,6 +200,10 @@ function Observer:isPointInside(position: Vector3): boolean
 	end
 
 	return isInside
+end
+
+function Observer:getPriority(): number
+	return State.observerPriorityMap[self.id] or 0
 end
 
 function Observer:getEntitiesInside(): { Types.Entity }
@@ -330,7 +333,7 @@ function Observer:destroy(): ()
 		end
 	end
 
-	State.ObserverPriorityMap[id] = nil
+	State.observerPriorityMap[id] = nil
 	State.observerEnteredCallbacks[id] = nil
 	State.observerExitedCallbacks[id] = nil
 	State.observerTrackingEntities[id] = nil
