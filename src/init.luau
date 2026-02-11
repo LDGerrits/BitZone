@@ -360,7 +360,7 @@ function QuickZone:isEntityInAnyGroup(entity: Entity): boolean
 	return State.entityToGroup[entity] ~= nil
 end
 
-function QuickZone:visualize(enable: boolean): QuickZone
+function QuickZone:visualize(enabled: boolean): QuickZone
 	if debugConnection then
 		debugConnection:Disconnect()
 		debugConnection = nil
@@ -371,7 +371,7 @@ function QuickZone:visualize(enable: boolean): QuickZone
 	end
 	table.clear(debugVisuals)
 
-	if not enable then
+	if not enabled then
 		return self
 	end
 

@@ -23,7 +23,7 @@ State.entityToGroup = {} :: { [Types.Entity]: number }
 State.entityCustomData = {} :: { [Types.Entity]: { [number]: any } }
 
 State.observerTrackingEntities = {} :: { [number]: { [Types.Entity]: boolean } }
-State.ObserverPriorityMap = {} :: { [number]: number }
+State.observerPriorityMap = {} :: { [number]: number }
 State.observerEnteredCallbacks = {} :: { [number]: { Types.Callback } }
 State.observerExitedCallbacks = {} :: { [number]: { Types.Callback } }
 State.observerEnabled = {} :: { [number]: boolean }

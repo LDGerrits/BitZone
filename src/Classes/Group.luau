@@ -179,18 +179,18 @@ function Group:remove(...: Types.Entity): Types.Group
 
 		-- Trigger exit
 		local safety = self._config.safety
-		for gId, oldZoneId in data.activeObserverMemberships do
-			if State.observerTrackingEntities[gId] then
-				State.observerTrackingEntities[gId][entity] = nil
+		for observerId, oldZoneId in data.activeObserverMemberships do
+			if State.observerTrackingEntities[observerId] then
+				State.observerTrackingEntities[observerId][entity] = nil
 			end
 
-			local cbs = State.observerExitedCallbacks[gId]
+			local cbs = State.observerExitedCallbacks[observerId]
 			if not cbs then
 				continue
 			end
 
 			local z = State.zoneIdToZoneObj[oldZoneId]
-			local cd = State.entityCustomData[entity] and State.entityCustomData[entity][gId]
+			local cd = State.entityCustomData[entity] and State.entityCustomData[entity][observerId]
 			for _, fn in cbs do
 				if safety then
 					task.spawn(fn, entity, z, cd)
