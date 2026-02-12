@@ -1,0 +1,26 @@
+title = "QuickZone"
+gitRepoUrl = "https://github.com/LDgerrits/QuickZone"
+
+gitSourceBranch = "main"
+changelog = false
+
+[home]
+enabled = true
+includeReadme = false
+
+[[home.features]]
+title = "Fast Spatial Queries"
+description = "Uses a Bounding Volume Hierarchy (BVH) for efficient spatial intersection tests"
+
+[[home.features]]
+title = "Group System"
+description = "Organize zones and trackable objects into logical groups"
+
+[[home.features]]
+title = "Shapes"
+description = "Supports Blocks, Balls, Cylinders and Wedges"
+
+organizationName = "LDGerrits"
+projectName = "QuickZone"
+url = "https://github.com/LDGerrits"
+baseUrl = "/QuickZone/"

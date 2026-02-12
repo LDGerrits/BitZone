@@ -4,6 +4,14 @@ local Geometry = require(script.Parent.Parent.Core.Geometry)
 local State = require(script.Parent.Parent.State)
 local Types = require(script.Parent.Parent.Types)
 
+--[=[ 
+	Zones define physical areas in world space. They can be static or dynamic 
+	and support various geometric shapes like Blocks, Balls, and Cylinders.
+	
+	Zones themselves are 'passive'; they must be attached to an **Observer** before any entity detection occurs.
+
+	@class Zone
+]=]
 local Zone = {}
 Zone.__index = Zone
 
@@ -50,6 +58,19 @@ function Zone.new(
 	return self
 end
 
+--[=[ 
+	Attaches one or more Observers to this zone. The observers will begin 
+	monitoring this area for entity overlaps.
+
+	```lua
+	zone:attach(myObserver)
+	```
+
+	@method attach
+	@within Zone
+	@param ... Observer -- The observers to link.
+	@return Zone
+]=]
 function Zone.attach(self: Types.InternalZone, ...: Types.InternalObserver): Types.Zone
 	local attached = State.zoneAttachedObservers[self.id] or {}
 	State.zoneAttachedObservers[self.id] = attached
@@ -62,6 +83,13 @@ function Zone.attach(self: Types.InternalZone, ...: Types.InternalObserver): Typ
 	return self
 end
 
+--[=[ 
+	Detaches observers from this zone.
+	@method detach
+	@within Zone
+	@param ... Observer -- The observers to unlink.
+	@return Zone
+]=]
 function Zone.detach(self: Types.InternalZone, ...: Types.InternalObserver): Types.Zone
 	local attached = State.zoneAttachedObservers[self.id]
 	if not attached then
@@ -83,6 +111,29 @@ function Zone.detach(self: Types.InternalZone, ...: Types.InternalObserver): Typ
 	return self
 end
 
+--[=[ 
+	Updates the zone's position and size.
+
+	```lua
+	-- Manual update
+	zone:update(CFrame.new(0, 20, 0), Vector3.new(5, 5, 5))
+
+	-- Sync with associated part
+	zone:update()
+	```
+
+	:::info Auto-Sync
+	If the zone was created with an `associatedPart`, calling `update()` 
+	without arguments will automatically sync the zone to that part's current 
+	CFrame and Size.
+	:::
+
+	@method update
+	@within Zone
+	@param newCFrame CFrame? -- Optional new position/rotation.
+	@param newSize Vector3? -- Optional new dimensions.
+	@return Zone
+]=]
 function Zone.update(self: Types.InternalZone, newCFrame: CFrame?, newSize: Vector3?): Types.Zone
 	local shape = self.dynamic and State.dynamicShapes[self.id] or State.staticShapes[self.id]
 
@@ -124,19 +175,43 @@ function Zone.update(self: Types.InternalZone, newCFrame: CFrame?, newSize: Vect
 	return self
 end
 
+--[=[ 
+	Returns the unique internal ID of the zone.
+	@method getId
+	@within Zone
+	@return number
+]=]
 function Zone.getId(self: Types.InternalZone): number
 	return self.id
 end
 
+--[=[ 
+	Returns the BasePart associated with this zone, if any.
+	@method getPart
+	@within Zone
+	@return BasePart?
+]=]
 function Zone.getPart(self: Types.InternalZone): BasePart?
 	return self.part
 end
 
+--[=[ 
+	Returns the geometric shape type of the zone.
+	@method getShapeType
+	@within Zone
+	@return ShapeType
+]=]
 function Zone.getShapeType(self: Types.InternalZone): Types.ShapeType
 	local shape = State.dynamicShapes[self.id] or State.staticShapes[self.id]
 	return shape.type
 end
 
+--[=[ 
+	Returns a list of all Observers currently attached to this zone.
+	@method getObservers
+	@within Zone
+	@return { Observer }
+]=]
 function Zone.getObservers(self: Types.InternalZone): { Types.Observer }
 	local attached = State.zoneAttachedObservers[self.id]
 	if not attached then
@@ -153,15 +228,35 @@ function Zone.getObservers(self: Types.InternalZone): { Types.Observer }
 	return result
 end
 
+--[=[ 
+	Checks if a point is inside this specific zone.
+	@method isPointInside
+	@within Zone
+	@param point Vector3
+	@return boolean
+]=]
 function Zone.isPointInside(self: Types.InternalZone, point: Vector3): boolean
 	local shape = self.dynamic and State.dynamicShapes[self.id] or State.staticShapes[self.id]
 	return Geometry.isPointInShape(point, shape)
 end
 
+--[=[ 
+	Returns whether the zone is currently registered as a dynamic object.
+	@method isDynamic
+	@within Zone
+	@return boolean
+]=]
 function Zone.isDynamic(self: Types.InternalZone): boolean
 	return self.dynamic
 end
 
+--[=[ 
+	Cleans up the zone, removes it from the BVH tree, and detaches all observers.
+	
+	@tag Destructor
+	@method destroy
+	@within Zone
+]=]
 function Zone.destroy(self: Types.InternalZone): ()
 	State.zoneAttachedObservers[self.id] = nil
 	State.zoneIdToZoneObj[self.id] = nil

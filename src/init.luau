@@ -116,8 +116,44 @@ local function untrackPlayer(player: Player, trackerStore: { [Player]: () -> () 
 	end
 end
 
+--[=[
+	QuickZone is a high-performance spatial partitioning library for Roblox. 
+	It allows for efficient zone detection of entities using a Linear BVH (Bounding Volume Hierarchy).
+
+	@class QuickZone
+]=]
 local QuickZone = {}
 
+--[=[ 
+	Creates a Zone object.
+
+	```lua
+	local zone = QuickZone.Zone(
+		CFrame.new(0, 10, 0), 
+		Vector3.new(10, 10, 10), 
+		'Block', 
+		nil, 
+		false -- Static
+	)
+	```
+
+	:::caution Performance
+	If this zone moves (e.g., attached to a moving platform) or changes size, 
+	you **must** set `isDynamic` to `true`. 
+
+	Static zones are optimized into a large, pre-calculated tree. Updating a 
+	static zone forces a full recalculation of that tree, which is expensive. 
+	Dynamic zones are handled separately and are much cheaper to update.
+	:::
+
+	@tag Constructor
+	@param cframe CFrame -- The center position and orientation of the zone.
+	@param size Vector3 -- The shape of the zone.
+	@param shape ShapeType -- The geometric shape ('Block', 'Ball', 'Cylinder', etc).
+	@param associatedPart BasePart? -- An optional part to associate with this zone.
+	@param isDynamic boolean? -- Whether the zone moves or changes size frequently.
+	@return Zone
+]=]
 function QuickZone.Zone(
 	cframe: CFrame,
 	size: Vector3,
@@ -128,6 +164,15 @@ function QuickZone.Zone(
 	return Zone.new(cframe, size, shape, associatedPart, isDynamic)
 end
 
+--[=[ 
+	Creates a Zone automatically based on a Part's properties.
+	Supported shapes: Block, Ball (Spheres), Cylinder, and Wedge.
+
+	@tag Constructor
+	@param part BasePart -- The part to derive the zone from.
+	@param isDynamic boolean? -- Whether the zone should follow the part every frame.
+	@return Zone
+]=]
 function QuickZone.ZoneFromPart(part: BasePart, isDynamic: boolean?): Zone
 	local shape: Types.ShapeType = 'Block'
 	if (part :: any).Shape == Enum.PartType.Ball then
@@ -140,10 +185,39 @@ function QuickZone.ZoneFromPart(part: BasePart, isDynamic: boolean?): Zone
 	return Zone.new(part.CFrame, part.Size, shape, part, isDynamic)
 end
 
+--[=[ 
+	Creates an Observer. Observers listen for entities entering or exiting assigned Zones.
+
+	:::info Resolution Priority
+	The `priority` value is used to resolve overlaps. When an entity is 
+	inside multiple zones watched by different observers, higher priority 
+	observers take precedence in specific logic chains.
+	:::
+
+	@tag Constructor
+	@param priority number? -- The priority level (defaults to 0).
+	@return Observer
+]=]
 function QuickZone.Observer(priority: number?): Observer
 	return Observer.new(priority)
 end
 
+--[=[ 
+	Creates a generic Group. 
+	Groups manage collections of Entities (any instance with a position in the world like BaseParts, Models, Attachments, etc.) that Observers should track.
+
+	```lua
+	local myGroup = QuickZone.Group({
+		updateRate = 20, -- Check at 20Hz
+		precision = 0.5, -- Ignore movement smaller than 0.5 studs
+		safety = true    -- Wrap callbacks in task.spawn
+	})
+	```
+
+	@tag Constructor
+	@param config { updateRate: number?, precision: number?, safety: boolean? }?
+	@return Group
+]=]
 function QuickZone.Group(config: {
 	updateRate: number?,
 	precision: number?,
@@ -152,6 +226,20 @@ function QuickZone.Group(config: {
 	return Group.new(config)
 end
 
+--[=[ 
+	Returns a singleton Group that automatically tracks all Players in the server.
+
+	:::info Behavior
+	* Automatically tracks the `HumanoidRootPart` of every player.
+	* Handles `PlayerAdded` and `CharacterAdded` internally.
+	* If a LocalPlayerGroup exists on the client, the local player is excluded 
+	  from this group to avoid duplicate tracking.
+	:::
+
+	@tag Constructor
+	@param config { updateRate: number?, precision: number?, safety: boolean? }?
+	@return Group
+]=]
 function QuickZone.PlayerGroup(config: {
 	updateRate: number?,
 	precision: number?,
@@ -214,6 +302,20 @@ function QuickZone.PlayerGroup(config: {
 	return group
 end
 
+--[=[ 
+	Returns a singleton Group that tracks only the LocalPlayer.
+
+	:::info Behavior
+	* This group takes 'ownership of the local player's character.
+	* When this group is destroyed, the local player is automatically handed back 
+	  to the global `PlayerGroup` if it exists.
+	:::
+
+	@client
+	@tag Constructor
+	@param config { updateRate: number?, precision: number?, safety: boolean? }?
+	@return Group
+]=]
 function QuickZone.LocalPlayerGroup(config: {
 	updateRate: number?,
 	precision: number?,
@@ -252,11 +354,33 @@ function QuickZone.LocalPlayerGroup(config: {
 	return group
 end
 
+--[=[ 
+	Sets the global time budget (in milliseconds) for the Scheduler per frame.
+	Defaults to 1ms. Use this to prevent frame drops in heavy games.
+
+	```lua
+	-- Allow QuickZone to use up to 5ms of frame time
+	QuickZone:setFrameBudget(5)
+	```
+
+	@method setFrameBudget
+	@within QuickZone
+	@param n number -- Time in milliseconds.
+	@return QuickZone
+]=]
 function QuickZone:setFrameBudget(n: number): QuickZone
 	Scheduler.setFrameBudget(n)
 	return QuickZone
 end
 
+--[=[ 
+	Performs a spatial query to find all Zones containing the given point.
+
+	@method getZonesAtPoint
+	@within QuickZone
+	@param position Vector3 -- The world position to check.
+	@return { Zone }
+]=]
 function QuickZone:getZonesAtPoint(position: Vector3): { Zone }
 	local results = {}
 
@@ -284,6 +408,14 @@ function QuickZone:getZonesAtPoint(position: Vector3): { Zone }
 	return results
 end
 
+--[=[ 
+	Finds all Observers whose assigned Zones contain the given point.
+
+	@method getObserversAtPoint
+	@within QuickZone
+	@param position Vector3 -- The world position to check.
+	@return { Observer }
+]=]
 function QuickZone:getObserversAtPoint(position: Vector3): { Observer }
 	table.clear(foundIdsCache)
 	local results = {}
@@ -326,6 +458,14 @@ function QuickZone:getObserversAtPoint(position: Vector3): { Observer }
 	return results
 end
 
+--[=[ 
+	Returns the Group that the specified entity currently belongs to.
+
+	@method getGroupOfEntity
+	@within QuickZone
+	@param entity Entity -- The Part, Model, or Table entity.
+	@return Group?
+]=]
 function QuickZone:getGroupOfEntity(entity: Types.Entity): Types.Group?
 	local groupId = State.entityToGroup[entity]
 	if groupId then
@@ -334,6 +474,14 @@ function QuickZone:getGroupOfEntity(entity: Types.Entity): Types.Group?
 	return nil
 end
 
+--[=[ 
+	Returns an array containing every Zone currently registered in the system.
+	This includes both static and dynamic zones.
+
+	@method getZones
+	@within QuickZone
+	@return { Zone }
+]=]
 function QuickZone:getZones(): { Types.Zone }
 	local result = {}
 	for _, zone in State.zoneIdToZoneObj do
@@ -342,6 +490,13 @@ function QuickZone:getZones(): { Types.Zone }
 	return result
 end
 
+--[=[ 
+	Returns an array of all Observers currently existing in the system.
+
+	@method getObservers
+	@within QuickZone
+	@return { Observer }
+]=]
 function QuickZone:getObservers(): { Types.Observer }
 	local result = {}
 	for _, observer in State.observerIdToObserverObj do
@@ -350,6 +505,14 @@ function QuickZone:getObservers(): { Types.Observer }
 	return result
 end
 
+--[=[ 
+	Returns an array of all Groups (including PlayerGroups) currently 
+	registered in the system.
+
+	@method getGroups
+	@within QuickZone
+	@return { Group }
+]=]
 function QuickZone:getGroups(): { Types.Group }
 	local result = {}
 	for _, group in State.groups do
@@ -358,6 +521,14 @@ function QuickZone:getGroups(): { Types.Group }
 	return result
 end
 
+--[=[ 
+	Returns a flattened array of every Entity (Parts, Models, etc.) currently 
+	being tracked across all Groups.
+
+	@method getEntities
+	@within QuickZone
+	@return { Entity }
+]=]
 function QuickZone:getEntities(): { Types.Entity }
 	local result = {}
 	for _, group in State.groups do
@@ -370,6 +541,16 @@ function QuickZone:getEntities(): { Types.Entity }
 	return result
 end
 
+--[=[ 
+	Enables or disables visual rendering of all registered Zones.
+	Static and Dynamic zones are colored differently based on their active status.
+
+	@tag Debug
+	@method visualize
+	@within QuickZone
+	@param enabled boolean -- Whether to show the debug visuals.
+	@return QuickZone
+]=]
 function QuickZone:visualize(enabled: boolean): QuickZone
 	if debugConnection then
 		debugConnection:Disconnect()

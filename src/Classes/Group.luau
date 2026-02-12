@@ -10,6 +10,15 @@ local STRAT_WORLD = Config.Strategy.WORLD
 local STRAT_CFRAME = Config.Strategy.CFRAME
 local STRAT_PIVOT = Config.Strategy.PIVOT
 
+--[=[ 
+	Groups represent a collection of entities that should be tracked by the system.
+
+	:::info Observer
+	Every entity **must** be in a group to be observed.
+	:::
+
+	@class Group
+]=]
 local Group = {}
 Group.__index = Group
 
@@ -53,33 +62,42 @@ function Group.new(config: {
 	return self
 end
 
-function Group.setConfig(
-	self: Types.InternalGroup,
-	config: {
-		updateRate: number?,
-		precision: number?,
-		safety: boolean?,
+--[=[ 
+	Adds an entity to the group. If the entity is already in another group, 
+	it is automatically removed from the old one first.
+
+	#### Example: Adding Different Entity Types
+	```lua
+	local myGroup = QuickZone.Group()
+
+	-- Adding a BasePart
+	myGroup:add(workspace.Part)
+
+	-- Adding a Model with custom metadata
+	myGroup:add(workspace.NPCModel, { Type = 'Enemy', Level = 42 })
+
+	-- Adding a custom table
+	local spell = {
+		CFrame = CFrame.new(0, 10, 0),
+		Name = 'Fireball'
 	}
-): Types.Group
-	local hz = config.updateRate
-	assert(not hz or hz > 0, '[QuickZone] updateRate must be greater than 0')
+	myGroup:add(spell)
+	```
 
-	local n = config.precision
-	assert(not n or n >= 0, '[QuickZone] precision must be non-negative')
+	:::info Strategy Detection
+	QuickZone automatically determines how to track the entity's position:
+	* **BasePart:** Uses `Position`
+	* **Model:** Uses `PrimaryPart.Position` or `GetPivot()`
+	* **Attachment/Bone:** Uses `WorldPosition`
+	* **Table:** Looks for `.Position`, `.CFrame`, `.WorldPosition`, or `:GetPivot()`.
+	:::
 
-	if hz then
-		self.config.updateRate = hz
-	end
-	if n then
-		self.config.precisionSq = n ^ 2
-	end
-	if config.safety ~= nil then
-		self.config.safety = config.safety
-	end
-
-	return self
-end
-
+	@method add
+	@within Group
+	@param entity Entity -- The object to track.
+	@param customData any? -- Optional data passed to Observer callbacks.
+	@return Group
+]=]
 function Group.add(self: Types.InternalGroup, entity: Types.Entity, customData: any?): Types.Group
 	local oldGroupId = State.entityToGroup[entity]
 	if oldGroupId then
@@ -149,6 +167,22 @@ function Group.add(self: Types.InternalGroup, entity: Types.Entity, customData: 
 	return self
 end
 
+--[=[ 
+	Removes one or more entities from the group.
+
+	```lua
+	-- Single removal
+	myGroup:remove(workspace.Part)
+
+	-- Multiple removal in one call
+	myGroup:remove(partA, partB, modelC, spellTable)
+	```
+	
+	@method remove
+	@within Group
+	@param ... Entity -- The entities to stop tracking.
+	@return Group
+]=]
 function Group.remove(self: Types.InternalGroup, ...: Types.Entity): Types.Group
 	for _, entity in { ... } do
 		if State.entityToGroup[entity] ~= self.id then
@@ -203,16 +237,117 @@ function Group.remove(self: Types.InternalGroup, ...: Types.Entity): Types.Group
 	return self
 end
 
+--[=[ 
+	Checks if a specific entity is currently a member of this group.
+	@method contains
+	@within Group
+	@param entity Entity
+	@return boolean
+]=]
+function Group.contains(self: Types.InternalGroup, entity: Types.Entity): boolean
+	local groupId = State.entityToGroup[entity]
+	return groupId and groupId == self.id
+end
+
+--[=[ 
+	Updates the group's configuration at runtime.
+
+	:::tip Precision
+	A higher `precision` value (e.g., 2.0) means entities must move further 
+	before a re-calculation is triggered, improving performance for large groups.
+	:::
+
+	@method setConfig
+	@within Group
+	@param config { updateRate: number?, precision: number?, safety: boolean? }
+	@return Group
+]=]
+function Group.setConfig(
+	self: Types.InternalGroup,
+	config: {
+		updateRate: number?,
+		precision: number?,
+		safety: boolean?,
+	}
+): Types.Group
+	local hz = config.updateRate
+	assert(not hz or hz > 0, '[QuickZone] updateRate must be greater than 0')
+
+	local n = config.precision
+	assert(not n or n >= 0, '[QuickZone] precision must be non-negative')
+
+	if hz then
+		self.config.updateRate = hz
+	end
+	if n then
+		self.config.precisionSq = n ^ 2
+	end
+	if config.safety ~= nil then
+		self.config.safety = config.safety
+	end
+
+	return self
+end
+
+--[=[
+	Returns the current configuration settings for this group.
+
+	```lua
+	local config = myGroup:getConfig()
+	print('Update Rate: ' .. config.updateRate .. 'Hz')
+	```
+
+	@method getConfig
+	@within Group
+	@return { updateRate: number, precision: number, safety: boolean }
+]=]
+function Group.getConfig(self: Types.InternalGroup): {
+	updateRate: number,
+	precision: number,
+	safety: boolean,
+}
+	local config = self.config
+	return {
+		updateRate = config.updateRate,
+		precision = math.sqrt(config.precisionSq),
+		safety = config.safety,
+	}
+end
+
+--[=[ 
+	Returns the unique internal ID of this group.
+	@method getId
+	@within Group
+	@return number
+]=]
 function Group.getId(self: Types.InternalGroup): number
 	return self.id
 end
 
+--[=[ 
+	Returns a list of all entities currently belonging to this group.
+	@method getEntities
+	@within Group
+	@return { Entity }
+]=]
 function Group.getEntities(self: Types.InternalGroup): { Types.Entity }
 	local result = table.create(#self.entities)
 	table.move(self.entities, 1, #self.entities, 1, result)
 	return result
 end
 
+--[=[
+	Returns a list of all Observers currently watching this group.
+
+	```lua
+	local observers = myGroup:getObservers()
+	print('This group is being watched by ' .. #observers .. ' observers.')
+	```
+
+	@method getObservers
+	@within Group
+	@return { Observer }
+]=]
 function Group.getObservers(self: Types.InternalGroup): { Types.Observer }
 	local result = {}
 	local observersMap = State.groupToObservers[self.id]
@@ -231,24 +366,14 @@ function Group.getObservers(self: Types.InternalGroup): { Types.Observer }
 	return result
 end
 
-function Group.getConfig(self: Types.InternalGroup): {
-	updateRate: number,
-	precision: number,
-	safety: boolean,
-}
-	local config = self.config
-	return {
-		updateRate = config.updateRate,
-		precision = math.sqrt(config.precisionSq),
-		safety = config.safety,
-	}
-end
-
-function Group.contains(self: Types.InternalGroup, entity: Types.Entity): boolean
-	local groupId = State.entityToGroup[entity]
-	return groupId and groupId == self.id
-end
-
+--[=[ 
+	Cleans up the group, removes all tracked entities, and detaches any 
+	associated observers.
+	
+	@tag Destructor
+	@method destroy
+	@within Group
+]=]
 function Group.destroy(self: Types.InternalGroup): ()
 	-- Must iterate backwards because remove() modifies array length
 	for i = #self.entities, 1, -1 do

@@ -1,5 +1,11 @@
 --!strict
 
+--[=[
+	@type ShapeType "Block" | "Ball" | "Cylinder" | "Wedge" | "CornerWedge"
+	@within QuickZone
+
+	Represents the geometric volume of a Zone.
+]=]
 export type ShapeType = 'Block' | 'Ball' | 'Cylinder' | 'Wedge' | 'CornerWedge'
 
 export type BoundingVolume = {
@@ -173,6 +179,26 @@ export type InternalGroup = Group & {
 	},
 }
 
+--[=[
+	@type Entity BasePart | Model | Camera | Attachment | Bone | EntityTable
+	@within QuickZone
+
+	An Entity is any object that can be tracked within a Group. Supports native 
+	Roblox Instances and custom "duck-typed" tables.
+]=]
+export type Entity = BasePart | Model | Camera | Attachment | Bone | EntityTable
+
+--[=[
+	@interface EntityTable
+	@within QuickZone
+	.Position Vector3?
+	.WorldPosition Vector3?
+	.CFrame CFrame?
+	.GetPivot (() -> CFrame)?
+
+	A custom table that mimics the spatial properties of a Roblox Instance. 
+	QuickZone will automatically detect which property to use to track this entity.
+]=]
 export type EntityTable = {
 	Position: Vector3?,
 	WorldPosition: Vector3?,
@@ -180,8 +206,6 @@ export type EntityTable = {
 	GetPivot: ((self: any) -> CFrame)?,
 	[any]: any,
 }
-
-export type Entity = BasePart | Model | Camera | Attachment | Bone | EntityTable
 
 export type EntityData = {
 	activeObserverMemberships: { [number]: number },
