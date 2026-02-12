@@ -20,7 +20,7 @@ jobs:
           token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Install Rokit Tools
-        run: rokit install
+        run: rokit install --no-trust-check
 
       - name: Install Dependencies
         run: wally install
