@@ -27,7 +27,7 @@ jobs:
 
       - name: Upload to Roblox
         run: |
-          rbxcloud asset upload \
+          rbxcloud assets upload \
             --asset-id 96553484189609 \
             --filepath quickzone.rbxm \
             --api-key ${{ secrets.ROBLOX_API_KEY }}
