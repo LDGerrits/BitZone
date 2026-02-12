@@ -1,0 +1,1 @@
+"use strict";(self.webpackChunkdocs=self.webpackChunkdocs||[]).push([[475],{4410:s=>{s.exports=JSON.parse('{"sourceUrl":"https://github.com/LDgerrits/QuickZone/blob/main","baseUrl":"/QuickZone/","classOrder":[],"apiCategories":[]}')}}]);
