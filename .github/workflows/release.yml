@@ -14,19 +14,26 @@ jobs:
       - name: Checkout Code
         uses: actions/checkout@v4
 
-      - name: Install Aftman
-        uses: ok-nick/setup-aftman@v6
+      - name: Setup Rokit
+        uses: CompeyDev/setup-rokit@v0.1.0
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Build quickzone.rbxm
+      - name: Install Dependencies
+        run: wally install
+
+      - name: Build Model
         run: rojo build -o quickzone.rbxm
+
+      - name: Upload to Roblox
+        run: |
+          rbxcloud asset upload \
+            --asset-id 96553484189609 \
+            --filepath quickzone.rbxm \
+            --api-key ${{ secrets.ROBLOX_API_KEY }}
 
       - name: Create Release
         uses: softprops/action-gh-release@v1
         with:
           files: quickzone.rbxm
           generate_release_notes: true
-
-      - name: Upload to Roblox
-        run: rojo upload quickzone.rbxm --asset_id 96553484189609 --api_key ${{ secrets.ROBLOX_API_KEY }}
