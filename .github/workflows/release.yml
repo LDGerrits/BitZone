@@ -1,0 +1,30 @@
+name: Publish Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+jobs:
+  publish-release:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Setup Rojo
+        uses: rojo-rbx/setup-rojo@v2.0.1
+
+      - name: Build quickzone.rbxm
+        run: rojo build -o quickzone.rbxm
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v1
+        with:
+          files: quickzone.rbxm
+          generate_release_notes: true
+
+      - name: Upload to Roblox
+        run: rojo upload quickzone.rbxm --asset_id 96553484189609 --api_key ${{ secrets.ROBLOX_API_KEY }}
