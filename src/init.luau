@@ -350,7 +350,7 @@ function QuickZone.LocalPlayerGroup(config: {
 end
 
 --[=[ 
-	Sets the global execution budget for the Scheduler per frame.
+	Sets the global execution budget for the Scheduler per frame in milliseconds.
 	
 	The Scheduler will 'dispatch' entity updates until this threshold is reached, 
 	at which point it yields until the next frame to prevent render stutter.
