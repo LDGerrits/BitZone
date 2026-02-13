@@ -8,9 +8,9 @@
 
 ## Why use QuickZone?
 
-Traditional zone libraries like ZonePlus and SimpleZone act as wrappers for Roblox's internal physics queries. Such libraries may use basic Bounding Volume Hierarchy (BVHs), but, ultimately, rely on the physics engine (e.g., `GetBoundsInBox`, `GetPartsInPart` or `.Touched`), resulting in expensive collision geometry calculations and synchronization overhead.
+Traditional zone libraries like ZonePlus and SimpleZone act as wrappers for Roblox's physics engine (e.g., `GetBoundsInBox`, `GetPartsInPart` or `.Touched`), resulting in expensive collision geometry calculations and synchronization overhead. QuickZone bypasses the physics engine in favor of geometric math, data-oriented design and smart processing, making it performant even in complex scenes.
 
-QuickZone bypasses the physics engine in favor of geometric math. Quickzone offers the following:
+## What it offers
 
 - **Fast Spatial Queries**: Process thousands of spatial queries per second with negligible FPS impact.
 
@@ -23,4 +23,3 @@ QuickZone bypasses the physics engine in favor of geometric math. Quickzone offe
 - **Budgeted Scheduler**: Remove lag spikes by setting a hard frame budget (e.g., 1ms). Workload is smeared across frames to maintain a flat and predictable performance profile.
 
 - **Zero-Allocation Runtime**: By using contiguous arrays and object pooling, QuickZone reduces GC pressure, avoiding memory-related stutters.
-
