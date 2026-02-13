@@ -1,7 +1,7 @@
 <div align="center">
 	<h1>QuickZone</h1>
 	<p>A lightweight spatial library for Roblox that replaces expensive physics queries with fast, math-based entity tracking at scale.</p>
-	<a href="(https://LDGerrits.github.io/QuickZone/"><strong>View docs</strong></a>
+	<a href="https://LDGerrits.github.io/QuickZone/"><strong>View docs</strong></a>
 </div>
 <!--moonwave-hide-before-this-line-->
 
@@ -23,3 +23,4 @@ QuickZone bypasses the physics engine in favor of geometric math. Quickzone offe
 - **Budgeted Scheduler**: Remove lag spikes by setting a hard frame budget (e.g., 1ms). Workload is smeared across frames to maintain a flat and predictable performance profile.
 
 - **Zero-Allocation Runtime**: By using contiguous arrays and object pooling, thereby minimizing GC pressure, QuickZone avoids memory-related stutters.
+
