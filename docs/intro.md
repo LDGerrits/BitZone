@@ -17,15 +17,18 @@ Because it calculates if it is inside or not using geometric math instead of phy
 
 ## Core Features
 
-**Best-In-Class Performance**: Process thousands of spatial queries per second with negligible FPS impact.
+- **Fast Spatial Queries**: Process thousands of spatial queries per second with negligible FPS impact.
 
-**Smart Scheduler**: Autmomatically divides workload equally across frames for a flat, predictable performance profile. Set a hard time limit (e.g., 1ms) to ensure that QuickZone never causes frame drops.
+- **Track Anything**: Track BaseParts, Models, Attachments, Bones, Cameras, or even pure Lua tables. If it has a position, QuickZone can track it.
 
-**Entity-Centric**: Costs are based on the number of tracked entities and not the number of zones.
+- **Shape Support**: Supports mathematical containment for Blocks, Balls, Cylinders, and Wedges without relying on physics collision meshes.
 
-**Group-Observer Topology**: Decouple your game logic from spatial instances. You are able to bind behaviors to categories of entities instead of individual parts.
+- **Decoupled Logic**: Decouple game logic from spatial instances. Bind behaviors to categories of entities (Players, NPCs, Projectiles) for a clean, scalable architecture.
 
-**Track Anything**: Track BaseParts, Models, Attachments, Bones, Cameras, or even Lua tables.
+- **Budgeted Scheduler**: Remove lag spikes by setting a hard frame budget (e.g., 1ms). Workload is smeared across frames to ensure a flat, predictable performance profile.
+
+- **Zero-Allocation Runtime**: Engineered with Data-Oriented Design to minimize GC pressure. By using contiguous arrays and object pooling, QuickZone avoids memory-related stutters.
+
 
 ## Benchmarks
 

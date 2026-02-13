@@ -4,7 +4,7 @@ sidebar_position: 3
 
 # Why use QuickZone?
 
-Traditional zone libraries like ZonePlus and SimpleZone act as wrappers for Roblox's internal physics queries. Such libraries may use basic Bounding Volume Hierarchy (BVHs), but ultimately rely on the physics engine (e.g., `GetBoundsInBox`, `GetPartsInPart` or `.Touched`), resulting in expensive collision geometry calculations and synchronization overhead.
+Traditional zone libraries like ZonePlus and SimpleZone act as wrappers for Roblox's internal physics queries. Such libraries may use basic Bounding Volume Hierarchy (BVHs), but, ultimately, rely on the physics engine (e.g., `GetBoundsInBox`, `GetPartsInPart` or `.Touched`), resulting in expensive collision geometry calculations and synchronization overhead.
 
 ## The QuickZone Approach
 
@@ -86,7 +86,6 @@ The scheduler smears updates across frames. This means that, if you have a Group
 The Scheduler uses a Round-Robin strategy for Group processing. Instead of processing groups in order, QuickZone cycles through them fairly. This prevents the issue where a heavy group keeps consuming the entire frame budget and 'starving' the subsequent groups.
 
 ### 5. Flexibility
-
 Because QuickZone relies on pure math rather than the Physics engine, it is not limited to BaseParts. It also supports duck typing for entities.
 
 - **BaseParts**: Uses `.Position`.

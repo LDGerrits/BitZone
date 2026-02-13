@@ -179,4 +179,4 @@ QuickZone:visualize(true)
 
 - **Point-Based Tracking:** QuickZone tracks points (the center of a Part, the Attachment's position, etc.), not the volume of the part itself.
 - **Attachments:** If you need to track a specific part of a character, add an `Attachment` to that part and track the Attachment.
-- **Scheduling:** To maintain high FPS, QuickZone uses `workload smearing` and a frame budget. As a consequence, an entity entering a zone might be detected a few frames later if thousands of calculations are queued.
+- **Scheduling:** To maintain high FPS, QuickZone uses frame budget and smears workload across frames. As a consequence, an entity entering a zone might be detected a few frames later if thousands of calculations are queued.

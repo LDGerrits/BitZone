@@ -1,3 +1,10 @@
+classOrder = [
+	"QuickZone",
+	"Zone",
+	"Observer",
+	"Group"
+]
+
 title = "QuickZone"
 gitRepoUrl = "https://github.com/LDgerrits/QuickZone"
 
@@ -10,17 +17,30 @@ includeReadme = false
 
 [[home.features]]
 title = "Fast Spatial Queries"
-description = "Uses a Bounding Volume Hierarchy (BVH) for efficient spatial intersection tests"
+description = "Process thousands of spatial queries per second with negligible FPS impact."
 
 [[home.features]]
-title = "Group System"
-description = "Organize zones and trackable objects into logical groups"
+title = "Track Anything"
+description = "Track BaseParts, Models, Attachments, Bones, Cameras, or even pure Lua tables. If it has a position, QuickZone can track it."
 
 [[home.features]]
-title = "Shapes"
-description = "Supports Blocks, Balls, Cylinders and Wedges"
+title = "Shape Support"
+description = "Supports mathematical containment for Blocks, Balls, Cylinders, and Wedges without relying on physics collision meshes."
+
+[[home.features]]
+title = "Decoupled Logic"
+description = "Decouple game logic from spatial instances. Bind behaviors to categories of entities (Players, NPCs, Projectiles) for a clean, scalable architecture."
+
+[[home.features]]
+title = "Budgeted Scheduler"
+description = "Remove lag spikes by setting a hard frame budget (e.g., 1ms). Workload is smeared across frames to ensure a flat, predictable performance profile."
+
+[[home.features]]
+title = "Zero-Allocation Runtime"
+description = "Engineered with Data-Oriented Design to minimize GC pressure. By using contiguous arrays and object pooling, QuickZone avoids memory-related stutters."
 
 organizationName = "LDGerrits"
 projectName = "QuickZone"
 url = "https://LDGerrits.github.io"
 baseUrl = "/QuickZone/"
+tagline = "High-performance spatial partitioning for Roblox"
