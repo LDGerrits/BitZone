@@ -3,8 +3,7 @@ sidebar_position: 3
 ---
 
 # Why use QuickZone?
-
-Traditional zone libraries like ZonePlus and SimpleZone act as wrappers for Roblox's internal physics queries. Such libraries may use basic Bounding Volume Hierarchy (BVHs), but, ultimately, rely on the physics engine (e.g., `GetBoundsInBox`, `GetPartsInPart` or `.Touched`), resulting in expensive collision geometry calculations and synchronization overhead.
+Traditional zone libraries like ZonePlus and SimpleZone act as wrappers for Roblox's physics engine (e.g., `GetBoundsInBox`, `GetPartsInPart` or `.Touched`), resulting in expensive collision geometry calculations and synchronization overhead.
 
 ## The QuickZone Approach
 

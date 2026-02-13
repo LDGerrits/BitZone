@@ -5,9 +5,7 @@ sidebar_position: 1
 # Introduction
 
 ## Overview
-A lightweight spatial library for Roblox that replaces expensive physics queries with fast, math-based entity tracking at scale.
-
-QuickZone makes it possible to track thousands of entities across hundreds of zones with very little impact on your frame rate. It bypasses Roblox's physics engine in favor of geometric math while providing a predictable, budgeted, and flexible solution for zone detection.
+QuickZone is a lightweight spatial library for Roblox that replaces expensive physics queries with fast, math-based entity tracking at scale. Instead of the physics engine, it uses geometric math while providing a predictable, budgeted, and flexible solution for zone detection, making it possible to track thousands of entities across hundreds of zones with very little impact on your frame rate.
 
 :::info Point-Based Detection
 QuickZone uses point-based detection. It checks if a specific point (e.g., the center of a Part, the position of an Attachment, or the Pivot of a Model) is inside a zone's boundary.

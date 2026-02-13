@@ -4,7 +4,7 @@ sidebar_position: 2
 
 # Usage
 
-QuickZone is designed around a three-tier architecture: Zones (where), Groups (who), and Observers (the logic bridge).
+QuickZone is designed around a three-tier architecture: Zones (where), Groups (who), and Observers (how).
 
 ![Priority](topology_quickzone.png)
 
@@ -36,7 +36,7 @@ local zone = QuickZone.Zone({
     size = Vector3.new(10, 10, 10),
     shape = 'Block',
     isDynamic = true,
-    metadata = { Name = "Lobby" }
+    metadata = { Name = 'Lobby' }
 })
 ```
 
@@ -126,12 +126,12 @@ Events are defined on the Observer, not the Zone or Group. Events return a clean
 ```lua
 -- Fires when an entity enters a zone for this observer
 local enteredConn = observer:onEntered(function(entity, zone, metadata)
-    print(entity.Name .. " entered " .. zone:getId() ... " with " ... tostring(zone:getMetadata()))
+    print(entity.Name .. ' entered ' .. zone:getId() ... ' with ' ... tostring(zone:getMetadata()))
 end)
 
 -- Fires when an entity enters a zone for this observer
 local exitedConn = observer:onExited(function(entity, zone, metadata)
-    print(entity.Name .. " exited " .. zone:getId() ... " with " ... tostring(zone:getMetadata()))
+    print(entity.Name .. ' exited ' .. zone:getId() ... ' with ' ... tostring(zone:getMetadata()))
 end)
 
 -- Convenience Player wrappers
