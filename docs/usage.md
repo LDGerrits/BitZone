@@ -95,7 +95,7 @@ enemies:add(spell)
 enemies:remove(npcModel)
 ```
 
-_Note: The second argument (`customData`) is optional and will be passed to your event callbacks._
+_Note: The second argument (`metadata`) is optional and will be passed to your event callbacks._
 
 ## Observers
 
@@ -116,7 +116,7 @@ Events are defined on the Observer, not the Zone or Group. Events return a clean
 
 ```lua
 -- Fires when an entity enters a zone for this observer
-local disconnect = observer:onEntered(function(entity, zone, customData)
+local disconnect = observer:onEntered(function(entity, zone, metadata)
     print(entity.Name .. " entered " .. zone:getId())
 end)
 

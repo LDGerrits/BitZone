@@ -95,10 +95,10 @@ end
 	@method add
 	@within Group
 	@param entity Entity -- The object to track.
-	@param customData any? -- Optional data passed to Observer callbacks.
+	@param metadata any? -- Optional data passed to Observer callbacks.
 	@return Group
 ]=]
-function Group.add(self: Types.InternalGroup, entity: Types.Entity, customData: any?): Types.Group
+function Group.add(self: Types.InternalGroup, entity: Types.Entity, metadata: any?): Types.Group
 	local oldGroupId = State.entityToGroup[entity]
 	if oldGroupId then
 		if oldGroupId == self.id then
@@ -157,11 +157,11 @@ function Group.add(self: Types.InternalGroup, entity: Types.Entity, customData: 
 
 	State.entityToGroup[entity] = self.id
 
-	if customData then
-		if not State.entityCustomData[entity] then
-			State.entityCustomData[entity] = {}
+	if metadata then
+		if not State.entityMetadata[entity] then
+			State.entityMetadata[entity] = {}
 		end
-		State.entityCustomData[entity] = customData
+		State.entityMetadata[entity] = metadata
 	end
 
 	return self
@@ -204,7 +204,7 @@ function Group.remove(self: Types.InternalGroup, ...: Types.Entity): Types.Group
 			end
 
 			local z = State.zoneIdToZoneObj[oldZoneId]
-			local cd = State.entityCustomData[entity] and State.entityCustomData[entity][observerId]
+			local cd = State.entityMetadata[entity] and State.entityMetadata[entity][observerId]
 			for _, fn in cbs do
 				if safety then
 					task.spawn(fn, entity, z, cd)
@@ -231,7 +231,7 @@ function Group.remove(self: Types.InternalGroup, ...: Types.Entity): Types.Group
 
 		self.entityData[entity] = nil
 		State.entityToGroup[entity] = nil
-		State.entityCustomData[entity] = nil
+		State.entityMetadata[entity] = nil
 	end
 
 	return self

@@ -29,7 +29,7 @@ local function disconnectObserverFromGroup(observerId: number, group: Types.Inte
 		local cbs = State.observerExitedCallbacks[observerId]
 		if cbs then
 			local z = State.zoneIdToZoneObj[oldZoneId]
-			local cd = State.entityCustomData[entity] and State.entityCustomData[entity][observerId]
+			local cd = State.entityMetadata[entity] and State.entityMetadata[entity][observerId]
 			for _, fn in cbs do
 				if safety then
 					task.spawn(fn, entity, z, cd)
@@ -119,7 +119,7 @@ end
 	Fires when any entity from a subscribed group enters a zone attached to this observer.
 
 	```lua
-	local disconnect = observer:onEntered(function(entity, zone, customData)
+	local disconnect = observer:onEntered(function(entity, zone, metadata)
 		print(entity.Name .. ' entered ' .. zone.id)
 	end)
 	```
@@ -127,7 +127,7 @@ end
 	@tag Event
 	@method onEntered
 	@within Observer
-	@param callback (entity: Entity, zone: Zone, customData: any?) -> ()
+	@param callback (entity: Entity, zone: Zone, metadata: any?) -> ()
 	@return () -> () -- A function that, when called, disconnects the callback.
 ]=]
 function Observer.onEntered(self: Types.InternalObserver, callback): () -> ()
@@ -146,7 +146,7 @@ end
 	@tag Event
 	@method onExited
 	@within Observer
-	@param callback (entity: Entity, zone: Zone, customData: any?) -> ()
+	@param callback (entity: Entity, zone: Zone, metadata: any?) -> ()
 	@return () -> () -- A function that, when called, disconnects the callback.
 ]=]
 function Observer.onExited(self: Types.InternalObserver, callback): () -> ()

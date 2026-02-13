@@ -13,7 +13,7 @@ local staticShapes = State.staticShapes
 local dynamicShapes = State.dynamicShapes
 local zoneAttachedObservers = State.zoneAttachedObservers
 local observerPriorityMap = State.observerPriorityMap
-local entityCustomData = State.entityCustomData
+local entityMetadata = State.entityMetadata
 local observerEnteredCallbacks = State.observerEnteredCallbacks
 local observerTrackingEntities = State.observerTrackingEntities
 local observerExitedCallbacks = State.observerExitedCallbacks
@@ -89,18 +89,18 @@ local function queryCallbackDynamic(zoneId: number)
 	end
 end
 
-local function fireCallback(callbacks, entity, zone, customData, safety)
+local function fireCallback(callbacks, entity, zone, metadata, safety)
 	if not callbacks then
 		return
 	end
 
 	if safety then
 		for _, cb in callbacks do
-			task.spawn(cb, entity, zone, customData)
+			task.spawn(cb, entity, zone, metadata)
 		end
 	else
 		for _, cb in callbacks do
-			cb(entity, zone, customData)
+			cb(entity, zone, metadata)
 		end
 	end
 end
@@ -249,7 +249,7 @@ RunService.PostSimulation:Connect(function(dt: number)
 						local cbs = observerExitedCallbacks[observerId]
 						if cbs then
 							local z = zoneIdToZoneObj[oldZoneId]
-							local cd = entityCustomData[entity] and entityCustomData[entity][observerId]
+							local cd = entityMetadata[entity] and entityMetadata[entity][observerId]
 							fireCallback(cbs, entity, z, cd, safety)
 						end
 					end
@@ -266,7 +266,7 @@ RunService.PostSimulation:Connect(function(dt: number)
 						local cbs = observerEnteredCallbacks[observerId]
 						if cbs then
 							local z = zoneIdToZoneObj[zoneIdx]
-							local cd = entityCustomData[entity] and entityCustomData[entity][observerId]
+							local cd = entityMetadata[entity] and entityMetadata[entity][observerId]
 							fireCallback(cbs, entity, z, cd, safety)
 						end
 					end

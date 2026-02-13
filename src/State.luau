@@ -20,7 +20,7 @@ State.groups = {} :: { [number]: Types.InternalGroup }
 State.groupToObservers = {} :: { [number]: { [number]: boolean } }
 State.groupList = {} :: { Types.InternalGroup }
 State.entityToGroup = {} :: { [Types.Entity]: number }
-State.entityCustomData = {} :: { [Types.Entity]: { [number]: any } }
+State.entityMetadata = {} :: { [Types.Entity]: { [number]: any } }
 
 State.observerTrackingEntities = {} :: { [number]: { [Types.Entity]: boolean } }
 State.observerPriorityMap = {} :: { [number]: number }

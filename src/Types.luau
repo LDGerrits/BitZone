@@ -150,7 +150,7 @@ export type Group = {
 	) -> Group,
 
 	-- State
-	add: (self: Group, entity: Entity, customData: any?) -> Group,
+	add: (self: Group, entity: Entity, metadata: any?) -> Group,
 	remove: (self: Group, ...Entity) -> Group,
 
 	-- Getters
