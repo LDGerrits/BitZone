@@ -44,7 +44,7 @@ The following benchmarks were recorded over 30 seconds with 2,000 moving entitie
 The package name + version is
 
 ```
-ldgerrits/quickzone@^0.2.3
+ldgerrits/quickzone@^0.3.0
 ```
 
 ### Manual
