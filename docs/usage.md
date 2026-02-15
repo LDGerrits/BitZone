@@ -120,21 +120,56 @@ observer:subscribe(allPlayers) -- Who to watch
 healingZone:attach(observer)   -- Where to watch
 ```
 
+### Lifecycle Management
+For logic that should persist while an entity is inside a zone (e.g., UI, music, status effects), use the observe methods. These accept a callback that returns a cleanup function, which runs automatically when the entity exits.
+
+```lua
+-- Generic observation
+observer:observe(function(entity, zone, metadata)
+    print("Entered", entity)
+    local highlight = Instance.new("Highlight", entity)
+    
+    return function()
+        print("Exited", entity)
+        highlight:Destroy()
+    end
+end)
+
+-- Player specific
+observer:observePlayer(function(player, zone)
+    local forceField = Instance.new("ForceField", player.Character)
+    
+    return function()
+        forceField:Destroy()
+    end
+end)
+
+-- Local Player specific
+observer:observeLocalPlayer(function(zone)
+    local sound = workspace.Sounds.SafeZoneAmbience
+    sound:Play()
+
+    return function()
+        sound:Stop()
+    end
+end)
+```
+
 ### Events
-Events are defined on the Observer, not the Zone or Group. Events return a cleanup function.
+For logic that happens exactly once on entry or exit (e.g., playing a sound effect, dealing damage, analytics), use the event listeners.
 
 ```lua
 -- Fires when an entity enters a zone for this observer
 local enteredConn = observer:onEntered(function(entity, zone, metadata)
-    print(entity.Name .. ' entered ' .. zone:getId() ... ' with ' ... tostring(zone:getMetadata()))
+    print(entity.Name .. ' entered ' .. zone:getId() .. ' with ' .. tostring(zone:getMetadata()))
 end)
 
 -- Fires when an entity enters a zone for this observer
 local exitedConn = observer:onExited(function(entity, zone, metadata)
-    print(entity.Name .. ' exited ' .. zone:getId() ... ' with ' ... tostring(zone:getMetadata()))
+    print(entity.Name .. ' exited ' .. zone:getId() .. ' with ' .. tostring(zone:getMetadata()))
 end)
 
--- Convenience Player wrappers
+-- Convenience wrappers
 observer:onPlayerEntered(function(player, zone) ... end)
 observer:onPlayerExited(function(player, zone) ... end)
 observer:onLocalPlayerEntered(function(zone) ... end)

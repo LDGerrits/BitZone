@@ -15,7 +15,7 @@ Because it calculates if it is inside or not using geometric math instead of phy
 
 ## Core Features
 
-- **Fast Spatial Queries**: Process thousands of spatial queries per second with negligible FPS impact.
+- **Lifecycle Management**: Use the `observe` pattern for 100% reliable cleanup. There is no need for juggling `onEntered` and `onExited` events anymore (do note that QuickZone still supports Event-Driven Programming).
 
 - **Track Anything**: Track BaseParts, Models, Attachments, Bones, Cameras, or even pure Lua tables. If it has a position, QuickZone can track it.
 
@@ -65,19 +65,19 @@ local swimObserver = QuickZone.Observer(42)
 swimObserver:subscribe(myPlayer)
 
 -- Define behavior
-swimObserver:onLocalPlayerEntered(function(zone)
-    local char = Players.LocalPlayer.Character
-    if char then
-        char.Humanoid:SetStateEnabled(Enum.HumanoidStateType.Swimming, true)
-        char.Humanoid:ChangeState(Enum.HumanoidStateType.Swimming)
-    end
-end)
+swimObserver:observeLocalPlayer(function()
+    local chararcter = Players.LocalPlayer.Character
+    if not character then return end
 
-swimObserver:onLocalPlayerExited(function(zone)
-    local char = Players.LocalPlayer.Character
-    if char then
-        char.Humanoid:ChangeState(Enum.HumanoidStateType.GettingUp)
-    end
+    local humanoid = character:FindFirstChild("Humanoid")
+    if not humanoid then return end
+    
+    humanoid:SetStateEnabled(Enum.HumanoidStateType.Swimming, true)
+    humanoid:ChangeState(Enum.HumanoidStateType.Swimming)
+
+    return function() 
+        humanoid:ChangeState(Enum.HumanoidStateType.GettingUp)
+    end)
 end)
 
 -- Create zones and attach them to the observer to let the observer 'see'

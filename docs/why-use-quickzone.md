@@ -5,8 +5,6 @@ sidebar_position: 3
 # Why use QuickZone?
 Traditional zone libraries like ZonePlus and SimpleZone act as wrappers for Roblox's physics engine (e.g., `GetBoundsInBox`, `GetPartsInPart` or `.Touched`), resulting in expensive collision geometry calculations and synchronization overhead.
 
-## The QuickZone Approach
-
 QuickZone bypasses the physics engine in favor of geometric math and data-oriented design. It implements a Linear BVH (LBVH) that resolves spatial queries using math compiled to machine code to prevent interpreter overhead.
 
 ### 1. The Entity-Centric Model
