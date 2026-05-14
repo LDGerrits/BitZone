@@ -38,7 +38,12 @@ local staticTree = State.staticTree
 
 local debugConnection: RBXScriptConnection?
 local debugFolder: Folder?
-local debugVisuals = {} :: { [number]: BoxHandleAdornment }
+type DebugVisual = {
+	adornment: any,
+	shape: Types.ShapeType,
+}
+
+local debugVisuals = {} :: { [number]: DebugVisual }
 
 export type QuickZone = Types.QuickZone
 export type Zone = Types.Zone
@@ -697,20 +702,35 @@ function QuickZone:visualize(enabled: boolean): QuickZone
 	newDebugFolder.Parent = workspace
 	debugFolder = newDebugFolder
 
-	local function getOrCreateVisual(id: number): BoxHandleAdornment
-		local box = debugVisuals[id]
-		if not box then
-			local newbox = Instance.new('BoxHandleAdornment')
-			newbox.Name = 'Zone_' .. id
-			newbox.Adornee = workspace.Terrain
-			newbox.Transparency = Config.Debug.transparency
-			newbox.AlwaysOnTop = true
-			newbox.ZIndex = 1
-			newbox.Parent = debugFolder
-			debugVisuals[id] = newbox
-			box = newbox
+	local function getOrCreateVisual(id: number): DebugVisual
+		local visual = debugVisuals[id]
+		if not visual then
+			local zone = zoneIdToZoneObj[id]
+			local shape = zone:getShape()
+			local adornment: any
+			if shape == "Block" then
+				adornment = Instance.new('BoxHandleAdornment')
+			elseif shape == "Ball" then
+				adornment = Instance.new('SphereHandleAdornment')
+			elseif shape == "Cylinder" then
+				adornment = Instance.new('CylinderHandleAdornment')
+			else
+				adornment = Instance.new('BoxHandleAdornment')
+				print("zone shape currently not visualizable, defaulting to block shape visual")
+			end
+			adornment.Name = 'Zone_' .. id
+			adornment.Adornee = workspace.Terrain
+			adornment.Transparency = Config.Debug.transparency
+			adornment.AlwaysOnTop = true
+			adornment.ZIndex = 1
+			adornment.Parent = debugFolder
+			visual = {
+				adornment = adornment,
+				shape = shape,
+			}
+			debugVisuals[id] = visual
 		end
-		return box
+		return visual
 	end
 
 	local loopEvent: RBXScriptSignal<number> = RunService:IsClient() and RunService.PreRender or RunService.Heartbeat
@@ -722,36 +742,58 @@ function QuickZone:visualize(enabled: boolean): QuickZone
 
 		-- Draw static zones
 		for id, cframe in staticCFrames do
-			local box = getOrCreateVisual(id)
+			local visual = getOrCreateVisual(id)
+			local box = visual.adornment
 			local halfSize = staticHalfSizes[id]
+			local size = halfSize * 2
 
 			local observers = zoneAttachedObservers[id]
 			local isActive = observers and next(observers) ~= nil
 			local color = isActive and Config.Debug.staticActive or Config.Debug.staticInactive
 
-			box.Size = halfSize * 2
-			box.CFrame = cframe
+			if visual.shape == "Ball" then
+				box.Radius = math.max(halfSize.X, halfSize.Y, halfSize.Z)
+				box.CFrame = cframe
+			elseif visual.shape == "Cylinder" then
+				box.Radius = math.max(halfSize.X, halfSize.Z)
+				box.Height = size.X
+				box.CFrame = cframe * CFrame.Angles(0, math.rad(90), 0)
+			else
+				box.Size = size
+				box.CFrame = cframe
+			end
 			box.Color3 = color
 		end
 
 		-- Draw dynamic zones
 		for id, cframe in dynamicCFrames do
-			local box = getOrCreateVisual(id)
+			local visual = getOrCreateVisual(id)
+			local box = visual.adornment
 			local halfSize = dynamicHalfSizes[id]
+			local size = halfSize * 2
 
 			local observers = zoneAttachedObservers[id]
 			local isActive = observers and next(observers) ~= nil
 			local color = isActive and Config.Debug.dynamicActive or Config.Debug.dynamicInactive
 
-			box.Size = halfSize * 2
-			box.CFrame = cframe
+			if visual.shape == "Ball" then
+				box.Radius = math.max(halfSize.X, halfSize.Y, halfSize.Z)
+				box.CFrame = cframe
+			elseif visual.shape == "Cylinder" then
+				box.Radius = math.max(halfSize.X, halfSize.Z)
+				box.Height = size.X
+				box.CFrame = cframe * CFrame.Angles(0, math.rad(90), 0)
+			else
+				box.Size = size
+				box.CFrame = cframe
+			end
 			box.Color3 = color
 		end
 
 		-- Destroy removed zones
 		for id, box in debugVisuals do
 			if not staticCFrames[id] and not dynamicCFrames[id] then
-				box:Destroy()
+				box.adornment:Destroy()
 				debugVisuals[id] = nil
 			end
 		end
