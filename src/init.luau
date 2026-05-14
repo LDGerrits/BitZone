@@ -708,9 +708,7 @@ function QuickZone:visualize(enabled: boolean): QuickZone
 			local zone = zoneIdToZoneObj[id]
 			local shape = zone:getShape()
 			local adornment: any
-			if shape == "Block" then
-				adornment = Instance.new('BoxHandleAdornment')
-			elseif shape == "Ball" then
+			if shape == "Ball" then
 				adornment = Instance.new('SphereHandleAdornment')
 			elseif shape == "Cylinder" then
 				adornment = Instance.new('CylinderHandleAdornment')
