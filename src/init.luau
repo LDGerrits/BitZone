@@ -716,7 +716,6 @@ function QuickZone:visualize(enabled: boolean): QuickZone
 				adornment = Instance.new('CylinderHandleAdornment')
 			else
 				adornment = Instance.new('BoxHandleAdornment')
-				print("zone shape currently not visualizable, defaulting to block shape visual")
 			end
 			adornment.Name = 'Zone_' .. id
 			adornment.Adornee = workspace.Terrain
