@@ -38,6 +38,7 @@ local staticTree = State.staticTree
 
 local debugConnection: RBXScriptConnection?
 local debugFolder: Folder?
+
 type DebugVisual = {
 	adornment: any,
 	shape: Types.ShapeType,
@@ -704,13 +705,19 @@ function QuickZone:visualize(enabled: boolean): QuickZone
 
 	local function getOrCreateVisual(id: number): DebugVisual
 		local visual = debugVisuals[id]
+		local zone = zoneIdToZoneObj[id]
+		local shape = zone:getShape()
+
+		if visual and visual.shape ~= shape then
+			visual.adornment:Destroy()
+			debugVisuals[id] = nil
+		end
+
 		if not visual then
-			local zone = zoneIdToZoneObj[id]
-			local shape = zone:getShape()
 			local adornment: any
-			if shape == "Ball" then
+			if shape == 'Ball' then
 				adornment = Instance.new('SphereHandleAdornment')
-			elseif shape == "Cylinder" then
+			elseif shape == 'Cylinder' then
 				adornment = Instance.new('CylinderHandleAdornment')
 			else
 				adornment = Instance.new('BoxHandleAdornment')
@@ -748,10 +755,10 @@ function QuickZone:visualize(enabled: boolean): QuickZone
 			local isActive = observers and next(observers) ~= nil
 			local color = isActive and Config.Debug.staticActive or Config.Debug.staticInactive
 
-			if visual.shape == "Ball" then
+			if visual.shape == 'Ball' then
 				box.Radius = math.max(halfSize.X, halfSize.Y, halfSize.Z)
 				box.CFrame = cframe
-			elseif visual.shape == "Cylinder" then
+			elseif visual.shape == 'Cylinder' then
 				box.Radius = math.max(halfSize.X, halfSize.Z)
 				box.Height = size.X
 				box.CFrame = cframe * CFrame.Angles(0, math.rad(90), 0)
@@ -773,10 +780,10 @@ function QuickZone:visualize(enabled: boolean): QuickZone
 			local isActive = observers and next(observers) ~= nil
 			local color = isActive and Config.Debug.dynamicActive or Config.Debug.dynamicInactive
 
-			if visual.shape == "Ball" then
+			if visual.shape == 'Ball' then
 				box.Radius = math.max(halfSize.X, halfSize.Y, halfSize.Z)
 				box.CFrame = cframe
-			elseif visual.shape == "Cylinder" then
+			elseif visual.shape == 'Cylinder' then
 				box.Radius = math.max(halfSize.X, halfSize.Z)
 				box.Height = size.X
 				box.CFrame = cframe * CFrame.Angles(0, math.rad(90), 0)
