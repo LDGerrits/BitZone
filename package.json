@@ -1,6 +1,6 @@
 {
 	"name": "@rbxts/quickzone",
-	"version": "1.4.6",
+	"version": "1.4.7",
 	"description": "A high-performance, physics-free spatial query library for Roblox. Maintain 60 FPS with 1M+ zones.",
 	"main": "src/init.lua",
 	"keywords": [

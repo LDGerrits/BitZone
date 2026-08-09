@@ -370,7 +370,7 @@ local groups = QuickZone:getGroupsOfEntity(workspace.Part)
 ---
 
 ## Considerations
-- **Point-Based Tracking:** QuickZone tracks the precise coordinate of an entity (Center, Attachment, or Pivot). It does not calculate the full volume intersection of the entity itself.
+- **Point-Based Tracking:** QuickZone tracks the precise coordinate of an entity (Center, Attachment, or Pivot). It does not calculate the full volume intersection of the entity itself. For this reason, ensure that zones encapsulate the center of the entity like a player's HumanoidRootPart.
 
 - **Movement Threshold (Precision)**: QuickZone only re-calculates spatial state when an entity moves beyond a certain distance. Setting a higher precision value (e.g., 2.0 studs) significantly reduces overhead for slow-moving objects.
 

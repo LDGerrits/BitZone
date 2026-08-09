@@ -181,13 +181,12 @@ end
 	Creates a Zone object.
 
 	```lua
-	local zone = QuickZone.Zone({
+	local zone = QuickZone.Zone.new({
 		cframe = CFrame.new(0, 10, 0),
 		size = Vector3.new(10, 10, 10),
 		shape = 'Block',
 		isDynamic = false,
-		metadata = { Name = "Lobby" },
-		observers = { observer1, observer2 }
+		metadata = { Name = "Lobby" }
 	})
 	```
 
@@ -241,9 +240,7 @@ end
 
 	```lua
 	local part = workspace.ZonePart
-	local zone = QuickZone.Zone.fromPart(part, { 
-		observers = { safeObserver, healingObserver } 
-	})
+	local zone = QuickZone.Zone.fromPart(part)
 	```
 
 	:::caution Dynamic Zones
@@ -399,9 +396,7 @@ end
 	anywhere within the given Instance. Automatically updates as descendants are added/removed.
 	
 	```lua
-	local mapZones = QuickZone.Zone.fromDescendants(workspace.HazardFolder, {
-		observers = { hazardObserver }
-	})
+	local mapZones = QuickZone.Zone.fromDescendants(workspace.HazardFolder)
 	```
 	
 	@tag Constructor
@@ -633,6 +628,7 @@ function Zone.fromTag(
 	return zones
 end
 
+-- private
 function Zone.attach(self: Types.InternalZone, observer: Types.InternalObserver): Types.Zone
 	local attached = State.zoneAttachedObservers[self.id] or {}
 	State.zoneAttachedObservers[self.id] = attached
@@ -651,6 +647,7 @@ function Zone.attach(self: Types.InternalZone, observer: Types.InternalObserver)
 	return self
 end
 
+-- private
 function Zone.detach(self: Types.InternalZone, observer: Types.InternalObserver): Types.Zone
 	local attached = State.zoneAttachedObservers[self.id]
 	if not attached then
@@ -1050,7 +1047,7 @@ end
 
 	@method getPosition
 	@within Zone
-	@return CFrame
+	@return Vector3
 ]=]
 function Zone.getPosition(self: Types.InternalZone): Vector3
 	local cf = self.dynamic and dynamicCFrames[self.id] or staticCFrames[self.id]

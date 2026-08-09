@@ -294,6 +294,7 @@ export type QuickZone = {
 		config: { enabled: boolean?, autoSyncRate: number?, frameBudget: number? }
 	) -> QuickZone,
 	setEnabled: (self: QuickZone, enabled: boolean) -> QuickZone,
+	setAutoSyncRate: (self: QuickZone, hz: number) -> QuickZone,
 	rebuild: (self: QuickZone) -> QuickZone,
 	update: (self: QuickZone, dt: number) -> QuickZone,
 	setFrameBudget: (self: QuickZone, ms: number) -> QuickZone,
