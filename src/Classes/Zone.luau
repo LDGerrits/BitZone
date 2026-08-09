@@ -1050,7 +1050,7 @@ end
 
 	@method getPosition
 	@within Zone
-	@return CFrame
+	@return Vector3
 ]=]
 function Zone.getPosition(self: Types.InternalZone): Vector3
 	local cf = self.dynamic and dynamicCFrames[self.id] or staticCFrames[self.id]
