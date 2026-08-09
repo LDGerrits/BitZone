@@ -96,8 +96,8 @@ export interface Observer {
 	getPlayersInside(): Player[]
 	getZones(): Zone[]
 	getGroups(): Group[]
-	getEntityInZone(entity: Entity): Zone | undefined
-	getPlayerInZone(player: Player): Zone | undefined
+	getZoneOfEntity(entity: Entity): Zone | undefined
+	getZoneOfPlayer(player: Player): Zone | undefined
 	getEntitiesInZone(zone: Zone): any[]
 	getPlayersInZone(zone: Zone): Player[]
 	iterZones(): IterableFunction<Zone>

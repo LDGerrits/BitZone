@@ -1312,7 +1312,7 @@ end
 --[=[ 
 	Returns the specific Zone this entity is currently tracked under for this Observer.
 
-	@method getEntityInZone
+	@method getZoneOfEntity
 	@within Observer
 	@param entity Entity -- The entity to get the zone for
 	@return Zone?
@@ -1335,7 +1335,7 @@ end
 --[=[ 
 	Returns the specific Zone a player is currently tracked under for this Observer.
 
-	@method getPlayerInZone
+	@method getZoneOfPlayer
 	@within Observer
 	@param player Player -- The player to get the zone for
 	@return Zone?
