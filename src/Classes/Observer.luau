@@ -150,7 +150,7 @@ Observer.__index = Observer
 ]=]
 function Observer.new<T>(config: {
 	groups: { Types.Group<T> }?,
-	zones: { Types.Zone | Types.Zones },
+	zones: { Types.Zone | Types.Zones }?,
 	priority: number?,
 	updateRate: number?,
 	precision: number?,
